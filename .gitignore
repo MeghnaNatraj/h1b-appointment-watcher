@@ -1,0 +1,11 @@
+.env
+session.session
+*.session
+*.session-journal
+h1b_watcher_venv/
+logs/
+*.log
+node_modules/
+__pycache__/
+archive/
+.DS_Store
