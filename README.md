@@ -136,18 +136,12 @@ h1b-appointment-watcher/
     requirements.txt      Python packages it needs
     .env.example          blank template of the settings file
     cloud/                scripts that create the Oracle server and copy the watcher to it
-  ais-bot/                second, optional tool (never set up, see below)
 ```
-
-## The second tool: ais-bot (optional, not set up)
-
-`ais-bot/` is a copy of github.com/jeangnc/us-visa-bot with one change: a Mac notification when it finds an earlier date. Instead of reading other people's reports, it logs in to **your own** account on ais.usvisa-info.com and looks for dates earlier than your booking.
-
-- Without `--dry-run` it **books the earlier slot automatically**, which cancels your current appointment. Always use `--dry-run`.
-- Checking too often can **lock your visa account**. Use a delay of minutes, not seconds.
-
-Setup and options are in `ais-bot/README.md`.
 
 ## Disclaimer
 
-For personal use. The watcher only reads a public group, but it uses your Telegram account to do so; use it within Telegram's terms. ais-bot automates logins to a government booking site, which may break that site's terms of service; use it at your own risk.
+For personal use. The watcher only reads a public group, but it uses your Telegram account to do so; use it within Telegram's terms.
+
+## Related
+
+[us-visa-bot](https://github.com/jeangnc/us-visa-bot) (ais-bot) is a different approach: it logs in to your own account on ais.usvisa-info.com and can rebook an earlier date automatically. It was considered and not used here, because frequent checks can lock your visa account and auto-rebooking cancels your current appointment.

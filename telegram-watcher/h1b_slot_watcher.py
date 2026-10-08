@@ -104,7 +104,8 @@ def send_email(subject, body, recipients=None):
 
 
 PROBLEM_REPEAT_HOURS = 6
-WATCHER_DIR = "visa-slots/telegram-watcher"
+WATCHER_DIR = "h1b-appointment-watcher/telegram-watcher"
+REPO = "MeghnaNatraj/h1b-appointment-watcher"
 
 
 def _server_commands():
@@ -378,10 +379,12 @@ def _report_login_needed(details):
     report_problem(
         "telegram-login",
         "Telegram login (logged out).",
-        f"In Terminal, cd ~/projects/tools/{WATCHER_DIR}, then:\n"
+        f"In Terminal, if the repo is not on this computer: gh repo clone {REPO} && {REPO.split('/')[1]}/setup.sh\n"
+        f"Then cd {WATCHER_DIR} and:\n"
         "1. h1b_watcher_venv/bin/python h1b_slot_watcher.py  (enter the Telegram code, Ctrl+C at 'Watching group')\n"
         f"2. {ssh} sudo rm /opt/h1b-watcher/session.session\n"
-        f"3. cloud/deploy.sh {ip}",
+        f"3. cloud/deploy.sh {ip}\n"
+        "4. cp session.session ~/.config/h1b-watcher/  (keeps the backup copy current)",
         details,
     )
 
