@@ -1,58 +1,92 @@
 # H1B Appointment Watcher
 
-Finds earlier US visa (H1B/H4) interview slots and tells you right away.
+Watches a Telegram group where people report open US visa (H1B/H4) interview slots, and tells you the moment a real slot is posted.
 
-## What it does, in plain words
+## Features
 
-There is a public Telegram group, **Regular_H1B_H4_VisaSlotsChecking**, where people post when they see open visa interview slots. Watching it by hand is tiring, so this tool watches it for you, 24 hours a day.
+- Watches the group 24 hours a day on a free cloud server, so your laptop can be off
+- Ignores noise: the group's repeating notice and "NA" (no slots) messages
+- Sends each real alert by email, and by WhatsApp once Meta approves the template
+- Catches up on messages it missed after a restart, so alerts arrive late rather than never
+- Emails you if something breaks, with the steps to fix it
+- A separate free service emails you if the watcher stops completely
+- Passwords and the Telegram login are never stored in this repo
 
-Every time someone posts in the group, the watcher decides whether it is a real slot alert:
+## How it works
 
-| Message in the group | What the watcher does |
+The public Telegram group **Regular_H1B_H4_VisaSlotsChecking** is where people post screenshots when they see open slots. The watcher is logged in to Telegram as you and reads the group. It only reads; it never posts there.
+
+For every new message it:
+
+1. **Skips** the group's repeating "H1 H4 inperson slots availa..." notice.
+2. **Skips** text that says "NA" or "N/A" as a word, meaning no slots. City names that contain those letters, like CHENNAI, are not skipped.
+3. **Treats as an alert** any photo or screenshot, and any other text.
+4. **Sends** the alert on every channel that is turned on. Each channel is tried separately, so one failing does not stop the others.
+
+## What you get
+
+| Channel | Status today |
 |---|---|
-| The group's repeating "H1 H4 inperson slots availa..." notice | Ignores it |
-| A screenshot or photo | Treats it as an alert |
-| Text saying "NA" or "N/A" (no slots) | Ignores it |
-| Any other text | Treats it as an alert |
+| **Email** to every address in `EMAIL_RECIPIENTS` | On |
+| **WhatsApp** | On, but not delivering: Meta has not approved the `h1b_slot_update` template. You get an email the moment it is approved. |
+| **Telegram** copy to Saved Messages and a DM | Off |
 
-When it finds an alert, it sends it to you:
+Besides alerts, you may get two other kinds of email:
 
-| Channel | Status |
-|---|---|
-| **Email** (to every address in the settings) | On |
-| **WhatsApp** | On, but not delivering yet: Meta has not approved the message template, so sends fail |
-| **Telegram** (a copy to your Saved Messages and a DM) | Off |
+- **"H1B watcher stopped: ..."** from the watcher itself, when something breaks (Telegram login expired, a crash). It says what happened and how to fix it, at most once every 6 hours per problem.
+- **A "down" email from healthchecks.io**, when the watcher stops sending its "still alive" signal (every 5 minutes). No email from them means it is working.
 
 ## Where it runs
 
-It runs on a **free Oracle Cloud server** (Always Free plan, San Jose region, IP in `telegram-watcher/cloud/server_ip.txt`). The account was never upgraded, so it cannot be charged. Your laptop does not need to be on.
+On a **free Oracle Cloud server** (Always Free plan, San Jose region). The account was never upgraded, so it cannot be charged. The server address is in `telegram-watcher/cloud/server_ip.txt`, and the watcher runs there as a service called `h1b-watcher` that restarts by itself if it crashes.
 
-A free monitoring service (**healthchecks.io**) gets a "still alive" signal from the watcher every 5 minutes. **If those signals stop, healthchecks.io emails you.** No email from them means it is working.
+Oracle sometimes stops free servers it thinks are idle. If healthchecks.io emails you that it is down, log in to the Oracle Cloud console and start the instance again.
 
-Oracle sometimes stops free servers it thinks are idle. If you get the "it stopped" email, log in to the Oracle Cloud console and start the instance again.
+## What you need
 
-## What is NOT in this repo (on purpose)
+- **The private files** in `~/.config/h1b-watcher/` on your Mac: `.env` (settings and passwords) and `session.session` (the saved Telegram login). Treat `session.session` like a password: anyone holding it can use your Telegram.
+- **`~/.ssh/oracle_h1b`**, the key that lets you log in to the server.
+- **`~/.oci/`**, the Oracle account key, only needed to create a new server.
+- Python 3 on your Mac, and the GitHub app `gh` to download the repo.
 
-Two private files never go to GitHub:
+The private files also live on the server in `/opt/h1b-watcher/`. If every copy is ever lost: get a new API ID and hash at my.telegram.org, create a new Google app password, and log in to Telegram again (it sends a code on first run).
 
-- **`.env`**: the settings and passwords (Telegram API keys, Gmail app password, WhatsApp token, email list, monitoring link).
-- **`session.session`**: the saved login to your Telegram account. Anyone holding it can use your Telegram, so treat it like a password.
+## Get it working on a computer
 
-They are kept in two places: on the server (`/opt/h1b-watcher/`) and on your Mac in **`~/.config/h1b-watcher/`**. To reach the server you also need **`~/.ssh/oracle_h1b`** (server key) and **`~/.oci/`** (Oracle account key). Keep all of these.
+1. Download it:
+   ```
+   gh repo clone MeghnaNatraj/h1b-appointment-watcher
+   cd h1b-appointment-watcher
+   ```
+2. Run the one-time setup. It copies the private files in from `~/.config/h1b-watcher/`, installs what it needs and runs the tests:
+   ```
+   ./setup.sh
+   ```
+3. To send a change (edited code or settings) to the server:
+   ```
+   telegram-watcher/cloud/deploy.sh $(cat telegram-watcher/cloud/server_ip.txt)
+   ```
 
-If they are ever all lost: get a new API ID and hash at my.telegram.org, a new Google app password, and log in to Telegram again (it texts a code on first run).
+## Settings
 
-## Get it working again on a computer
+All settings live in `.env` (template: `telegram-watcher/.env.example`).
 
-1. Download the repo: `gh repo clone MeghnaNatraj/h1b-appointment-watcher`
-2. Make sure `~/.config/h1b-watcher/` has `.env` and `session.session`.
-3. Run `./setup.sh` inside the folder. It copies the private files in, installs what it needs and runs the tests.
-
-To push a change to the server (edited script or settings): `telegram-watcher/cloud/deploy.sh $(cat telegram-watcher/cloud/server_ip.txt)`
+| Setting | What it is | Where to find it |
+|---|---|---|
+| `API_ID`, `API_HASH` | Lets the watcher log in to Telegram | my.telegram.org, then "API development tools" |
+| `SOURCE_GROUP` | The group to watch | Already set to `Regular_H1B_H4_VisaSlotsChecking` |
+| `EMAIL_ENABLED` | Email alerts on or off | `true` or `false` |
+| `GMAIL_ADDRESS` | Gmail account that sends the alerts | Your Gmail address |
+| `GMAIL_APP_PASSWORD` | 16-letter password just for this app, not your real one | Google Account, Security, App passwords |
+| `EMAIL_RECIPIENTS` | Who gets alert emails | Addresses separated by commas |
+| `TELEGRAM_COPIES_ENABLED`, `TELEGRAM_RECIPIENT` | Telegram copies on or off, and the username (no @) that gets a DM | Your Telegram username |
+| `WA_ENABLED` and the other `WA_` settings | WhatsApp alerts via Meta's WhatsApp Cloud API | Meta for Developers, your WhatsApp app; templates in WhatsApp Manager |
+| `HEALTHCHECK_URL` | The "still alive" link | healthchecks.io, your check's ping URL |
+| `HEARTBEAT_DAYS` | Optional "still running" note every N days | `0` turns it off (healthchecks.io does this job instead) |
 
 ## Everyday commands
 
-Run these from the repo folder. `IP` is the server address.
+Run from the repo folder. First set the server address:
 
 ```
 IP=$(cat telegram-watcher/cloud/server_ip.txt)
@@ -61,19 +95,34 @@ IP=$(cat telegram-watcher/cloud/server_ip.txt)
 | I want to... | Command |
 |---|---|
 | See if it is running | `ssh -i ~/.ssh/oracle_h1b opc@$IP systemctl is-active h1b-watcher` |
-| See the last messages it logged | `ssh -i ~/.ssh/oracle_h1b opc@$IP sudo journalctl -u h1b-watcher -n 50` |
+| See the last 50 log lines | `ssh -i ~/.ssh/oracle_h1b opc@$IP sudo journalctl -u h1b-watcher -n 50` |
 | Restart it | `ssh -i ~/.ssh/oracle_h1b opc@$IP sudo systemctl restart h1b-watcher` |
 
-Only one copy may use the Telegram login at a time. Do not run the watcher on your Mac while the server copy is running.
+## What the log looks like
+
+```
+2026-10-08 22:28:21,007 INFO Watching group, Telegram notifications stay as normal...
+2026-10-08 07:28:16,221 INFO Alert sent: [image, no caption]
+2026-10-08 20:35:50,502 WARNING WhatsApp send with template h1b_slot_update failed: 404 ...
+```
+
+"Watching group" means it connected. "Alert sent" means a slot alert went out. The WhatsApp warning is expected until Meta approves the template.
+
+## Safety
+
+- **Read-only in the group.** It never posts, reacts or messages anyone in the group.
+- **No secrets in the repo.** `.env` and `session.session` are excluded by `.gitignore`.
+- **One copy at a time.** Two copies using the same Telegram login can get the login cancelled. Do not run the watcher on your Mac while the server copy is running.
+- **Cannot cost money.** The Oracle account is on the free plan and was never upgraded.
 
 ## Known issues
 
-- **WhatsApp**: alerts fail with "Template ... does not exist" until the `h1b_slot_update` template is Active in WhatsApp Manager. Nothing to change in the code; once Meta approves it, alerts start arriving.
-- **Email**: if the Gmail app password is revoked or expires, email alerts fail (error "535" in the log). Create a new app password, put it in `GMAIL_APP_PASSWORD` in `~/.config/h1b-watcher/.env`, copy that file to `telegram-watcher/.env` and run the deploy command.
+- **WhatsApp**: fails with error 404 until the `h1b_slot_update` template is Active in WhatsApp Manager. No code change needed.
+- **Email**: if the Gmail app password is revoked, email alerts fail (error "535" in the log). Create a new app password, update `GMAIL_APP_PASSWORD` in `~/.config/h1b-watcher/.env`, copy that file to `telegram-watcher/.env`, and run the deploy command.
 
 ## Moving to a new server
 
-If Oracle deletes the server, `telegram-watcher/cloud/auto_setup.sh` requests a new free one (it retries every 3 minutes, because free servers are often "out of capacity"), installs everything and saves the new IP in `cloud/server_ip.txt`. It uses the `h1b` profile in `~/.oci/config`.
+If Oracle deletes the server, `telegram-watcher/cloud/auto_setup.sh` requests a new free one, retrying every 3 minutes because free servers are often "out of capacity". It then installs everything and saves the new address in `cloud/server_ip.txt`. It uses the `h1b` profile in `~/.oci/config`.
 
 ## What is in the folders
 
@@ -85,18 +134,20 @@ h1b-appointment-watcher/
     h1b_slot_watcher.py   the program
     test_filter.py        tests for the alert rules
     requirements.txt      Python packages it needs
-    .env.example          blank template of the private settings file
+    .env.example          blank template of the settings file
     cloud/                scripts that create the Oracle server and copy the watcher to it
   ais-bot/                second, optional tool (never set up, see below)
 ```
 
 ## The second tool: ais-bot (optional, not set up)
 
-`ais-bot/` is a copy of github.com/jeangnc/us-visa-bot with one change: a Mac notification when it finds an earlier date. Instead of watching other people's reports, it logs in to **your own** account on ais.usvisa-info.com and checks for dates earlier than your booking.
-
-Two warnings before ever using it:
+`ais-bot/` is a copy of github.com/jeangnc/us-visa-bot with one change: a Mac notification when it finds an earlier date. Instead of reading other people's reports, it logs in to **your own** account on ais.usvisa-info.com and looks for dates earlier than your booking.
 
 - Without `--dry-run` it **books the earlier slot automatically**, which cancels your current appointment. Always use `--dry-run`.
 - Checking too often can **lock your visa account**. Use a delay of minutes, not seconds.
 
 Setup and options are in `ais-bot/README.md`.
+
+## Disclaimer
+
+For personal use. The watcher only reads a public group, but it uses your Telegram account to do so; use it within Telegram's terms. ais-bot automates logins to a government booking site, which may break that site's terms of service; use it at your own risk.
