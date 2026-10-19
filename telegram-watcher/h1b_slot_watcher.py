@@ -18,6 +18,8 @@ from pathlib import Path
 
 import requests
 
+import slot_image
+
 HERE = Path(__file__).resolve().parent
 log = logging.getLogger("h1b_watcher")
 
@@ -196,19 +198,24 @@ def send_telegram_bot(text, image_bytes):
     base = f"https://api.telegram.org/bot{os.environ['TG_BOT_TOKEN']}"
     chat = os.environ["TG_BOT_CHAT_ID"]
     if image_bytes is not None:
+        # Captions stop at 1024 characters, so a longer message follows the
+        # photo as its own message instead of being cut.
+        long_text = len(text) > 1024
         resp = requests.post(f"{base}/sendPhoto", timeout=30,
-                             data={"chat_id": chat, "caption": text[:1000]},
+                             data={"chat_id": chat, "caption": "" if long_text else text},
                              files={"photo": ("alert.jpg", image_bytes)})
+        if resp.ok and long_text:
+            resp = requests.post(f"{base}/sendMessage", timeout=15, data={"chat_id": chat, "text": text})
     else:
         resp = requests.post(f"{base}/sendMessage", timeout=15, data={"chat_id": chat, "text": text})
     if not resp.ok:
         raise RuntimeError(f"{resp.status_code} {resp.text[:300]}")
 
 
-def send_ntfy(text):
+def send_ntfy(text, title="VISA SLOT", priority="urgent"):
     """Push the alert to the ntfy topic the phone app and laptop alarm listen on."""
     resp = requests.post(f"https://ntfy.sh/{os.environ['NTFY_TOPIC']}", data=text.encode("utf-8"), timeout=15,
-                         headers={"Title": "VISA SLOT", "Priority": "urgent", "Tags": "rotating_light"})
+                         headers={"Title": title, "Priority": priority, "Tags": "rotating_light"})
     resp.raise_for_status()
 
 
@@ -241,23 +248,24 @@ def channel_skip_reason(name):
 def build_channels(test=False):
     """List the non-Telethon alert channels as [(name, enabled, send)], ntfy first.
 
-    send(alert, caption, image_bytes) is blocking; `caption` is the text that
-    goes with an image. Shared by the live handler and --test-alert. In test
+    send(alert, caption, image_bytes, summary) is blocking; `caption` is the text
+    that goes with an image and `summary` the details read from it, or None. Shared by the live handler and --test-alert. In test
     mode email goes only to GMAIL_ADDRESS, never to EMAIL_RECIPIENTS.
     """
-    def email(alert, caption, image_bytes):
+    def email(alert, caption, image_bytes, summary=None):
+        subject = f"H1B slot alert: {summary}" if summary else "H1B slot alert"
         if test:
-            send_email("TEST: H1B slot alert", alert, [os.environ["GMAIL_ADDRESS"]])
+            send_email("TEST: " + subject, alert, [os.environ["GMAIL_ADDRESS"]])
         else:
-            send_email("H1B slot alert", alert)
+            send_email(subject, alert)
 
     return [
-        ("ntfy", bool(os.environ.get("NTFY_TOPIC")), lambda alert, caption, img: send_ntfy(alert)),
+        ("ntfy", bool(os.environ.get("NTFY_TOPIC")), lambda alert, caption, img, summary=None: send_ntfy(alert)),
         ("bot", all(os.environ.get(k) for k in CHANNEL_SETTINGS["bot"]),
-         lambda alert, caption, img: send_telegram_bot(caption, img)),
+         lambda alert, caption, img, summary=None: send_telegram_bot(caption, img)),
         ("email", _env_bool("EMAIL_ENABLED", True), email),
         ("whatsapp", _env_bool("WA_ENABLED"),
-         lambda alert, caption, img: send_whatsapp(alert, report=not test)),
+         lambda alert, caption, img, summary=None: send_whatsapp(alert, report=not test)),
     ]
 
 
@@ -312,14 +320,13 @@ def make_handler(client):
             log.info("Skipped admin message: %s", text[:80])
             return
 
-        alert = text if text else "New slot photo posted"
         channels = build_channels()
 
-        async def run_channel(name, enabled, send, caption, image_bytes):
+        async def run_channel(name, enabled, send, alert, caption, image_bytes, summary=None):
             if not enabled:
                 return
             try:
-                await asyncio.to_thread(send, alert, caption, image_bytes)
+                await asyncio.to_thread(send, alert, caption, image_bytes, summary)
             except Exception as e:
                 log.error("%s send failed: %s", name, e)
                 if name == "email":
@@ -333,7 +340,9 @@ def make_handler(client):
                     )
 
         # Ring the phone app and laptop alarm first: they are the loud ones.
-        await run_channel(*channels[0], alert, None)
+        # Reading the screenshot can take seconds, so it never delays this.
+        first = text or "New slot photo posted"
+        await run_channel(*channels[0], first, first, None)
 
         image_bytes = None
         if has_image:
@@ -342,6 +351,19 @@ def make_handler(client):
             except Exception:
                 log.exception("Could not download alert image")
 
+        # Location, visa type and dates read from the screenshot, or None.
+        summary = None
+        if image_bytes is not None:
+            summary = await asyncio.to_thread(slot_image.read_slot_image, image_bytes)
+            if summary and os.environ.get("NTFY_TOPIC"):
+                try:
+                    await asyncio.to_thread(send_ntfy, summary, "Slot details", "high")
+                except Exception as e:
+                    log.error("ntfy details push failed: %s", e)
+        # The full original message, never shortened, with the summary on top.
+        caption = slot_image.compose_alert(text, summary)
+        alert = caption or "New slot photo posted"
+
         targets = (("me", "Saved Messages"), (recipient, f"DM {recipient}"))
         if not _env_bool("TELEGRAM_COPIES_ENABLED", True):
             targets = ()
@@ -349,13 +371,13 @@ def make_handler(client):
             try:
                 # If the image download failed, fall back to the alert text so
                 # an uncaptioned image still produces a message.
-                await _send_copy(client, target, text if image_bytes is not None else alert, image_bytes)
+                await _send_copy(client, target, caption if image_bytes is not None else alert, image_bytes)
             except Exception as e:
                 log.error("Could not send to %s: %s", label, e)
 
-        caption = text if image_bytes is not None else alert
+        bot_text = caption if image_bytes is not None else alert
         for channel in channels[1:]:
-            await run_channel(*channel, caption, image_bytes)
+            await run_channel(*channel, alert, bot_text, image_bytes, summary)
 
         log.info("Alert sent: %s", alert[:80])
 
