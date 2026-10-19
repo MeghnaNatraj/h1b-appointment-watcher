@@ -83,7 +83,7 @@ DAY_MONTH_YEAR = re.compile(rf"(?<!\d){DAY_LIST_RE}{SEP}{MONTH_RE}{SEP}{YEAR_RE}
 MONTH_DAY_YEAR = re.compile(rf"(?<![a-z]){MONTH_RE}{SEP}{DAY_LIST_RE}(?!\d)\s*,?\s*{YEAR_RE}", re.IGNORECASE)
 # "2026-11-04"
 ISO_DATE = re.compile(r"(?<!\d)(20\d{2})[-/.](\d{1,2})[-/.](\d{1,2})(?!\d)")
-# "04/11/2026", day first as written in India unless that cannot be a date
+# "01/05/2027", month first: the US visa appointment pages label dates MM/DD/YYYY
 NUMERIC_DATE = re.compile(r"(?<!\d)(\d{1,2})[/.\-](\d{1,2})[/.\-](20\d{2})(?!\d)")
 # "November 2026" when no day is visible
 MONTH_YEAR = re.compile(rf"(?<![a-z]){MONTH_RE}{SEP}{YEAR_RE}", re.IGNORECASE)
@@ -194,14 +194,16 @@ def find_dates(text):
         take(m, [_valid(int(m.group(1)), int(m.group(2)), int(m.group(3)))])
     for m in NUMERIC_DATE.finditer(text):
         a, b, year = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        take(m, [_valid(year, b, a) or _valid(year, a, b)])
+        take(m, [_valid(year, a, b) or _valid(year, b, a)])
 
     month_only = set()
     for m in MONTH_YEAR.finditer(text):
         if any(s <= m.start() < e or s < m.end() <= e for s, e in used):
             continue
         month_only.add((int(m.group(2)), _month_number(m.group(1))))
-    month_only -= {(d.year, d.month) for d in dates}
+    # With exact dates found, a bare "February 2027" is a calendar header, not an opening.
+    if dates:
+        month_only = set()
     return sorted(dates), sorted(month_only)
 
 
@@ -240,7 +242,9 @@ def summarize(ocr_text):
         return None
     parts = []
     if locations:
-        parts.append("/".join(locations[:3]))
+        # VAC is the biometrics appointment, not the consular interview.
+        vac = " VAC" if re.search(r"(?<![a-z])vac(?![a-z])", ocr_text, re.IGNORECASE) else ""
+        parts.append("/".join(locations[:3]) + vac)
     if visa:
         parts.append(visa)
     if dates:

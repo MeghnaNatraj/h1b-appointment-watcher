@@ -24,7 +24,7 @@ class SummarizeTest(unittest.TestCase):
         self.assertEqual(s.summarize(text), "Hyderabad, H1B regular, 2 dates: Nov 4, 12 2026")
 
     def test_date_formats(self):
-        dates, months = s.find_dates("2026-11-04, Nov 5 2026, 06/11/2026, 7th November, 2026, 08-Nov-2026")
+        dates, months = s.find_dates("2026-11-04, Nov 5 2026, 11/06/2026, 7th November, 2026, 08-Nov-2026")
         self.assertEqual([d.day for d in dates], [4, 5, 6, 7, 8])
         self.assertEqual(months, [])
 
@@ -32,9 +32,16 @@ class SummarizeTest(unittest.TestCase):
         dates, _ = s.find_dates("Available 04, 05 & 12 Nov 2026")
         self.assertEqual([d.day for d in dates], [4, 5, 12])
 
-    def test_month_first_numeric_when_day_first_is_impossible(self):
-        dates, _ = s.find_dates("11/24/2026")
-        self.assertEqual(dates, [datetime.date(2026, 11, 24)])
+    def test_numeric_dates_are_month_first(self):
+        self.assertEqual(s.find_dates("01/05/2027")[0], [datetime.date(2027, 1, 5)])
+        # Day first only when month first cannot be a date.
+        self.assertEqual(s.find_dates("24/11/2026")[0], [datetime.date(2026, 11, 24)])
+
+    def test_real_calendar_screenshot(self):
+        # OCR of a real Hyderabad VAC screenshot: the calendar headers are not openings.
+        text = ("OFC Post\nHYDERABAD VAC\nDate (MM/DD/YYYY)\n@ {Jan [2027 | February 2027 \u00b0\n"
+                "Su Mo Tu We Th Sa Su Mo Tu We Th Fr Sa\nDate (MM/DD/YYYY) i Availability\n\u00ae 01/05/2027")
+        self.assertEqual(s.summarize(text), "Hyderabad VAC, 1 date: Jan 5 2027")
 
     def test_month_only(self):
         self.assertEqual(s.summarize("Chennai H4 dropbox slots in December 2026"),
