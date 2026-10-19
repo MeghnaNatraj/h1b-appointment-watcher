@@ -9,6 +9,7 @@ Watches a Telegram group where people report open US visa (H1B/H4) interview slo
 - Rings a full-screen alarm on your Android phone, even on silent or vibrate
 - Sounds a loud alarm with a pop-up on your Mac
 - Sends each real alert from a Telegram bot (just the message), by WhatsApp and by email
+- Reads the posted screenshot and adds a one-line summary, like "Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026"
 - Catches up on messages it missed after a restart, so alerts arrive late rather than never
 - Emails you if something breaks, with the steps to fix it
 - A separate free service emails you if the watcher stops completely
@@ -23,7 +24,8 @@ For every new message it:
 1. **Skips** the group's repeating "H1 H4 inperson slots availa..." notice.
 2. **Skips** text that says "NA" or "N/A" as a word, meaning no slots. City names that contain those letters, like CHENNAI, are not skipped.
 3. **Treats as an alert** any photo or screenshot, and any other text.
-4. **Sends** the alert on every channel that is turned on. Each channel is tried separately, so one failing does not stop the others.
+4. **Reads** the screenshot, if there is one, for the location, visa type and dates (see "Reading screenshots" below).
+5. **Sends** the alert on every channel that is turned on. Each channel is tried separately, so one failing does not stop the others.
 
 ## What you get
 
@@ -91,7 +93,26 @@ All settings live in `.env` (template: `telegram-watcher/.env.example`).
 | `TG_BOT_TOKEN`, `TG_BOT_CHAT_ID` | The Telegram bot that sends you each alert | See "Telegram bot" below |
 | `NTFY_TOPIC` | Private channel for the phone app and Mac alarm | Make one up: `echo visa-alert-$(openssl rand -hex 8)` |
 | `HEALTHCHECK_URL` | The "still alive" link | healthchecks.io, your check's ping URL |
+| `OCR_ENABLED` | Read screenshots for a summary line | `true` (default) or `false` |
 | `HEARTBEAT_DAYS` | Optional "still running" note every N days | `0` turns it off (healthchecks.io does this job instead) |
+
+## Reading screenshots
+
+Most alerts in the group are screenshots with no caption. The watcher reads each screenshot with [tesseract](https://github.com/tesseract-ocr/tesseract), a free text-recognition program that runs on the server itself (no paid service, no account), and picks out the location (Hyderabad, Chennai, Mumbai, New Delhi, Kolkata and common US consulates abroad), the visa type (H1B or H4, regular or dropbox) and the dates. It builds one line from what it found, for example `Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026`. It only reports what is written in the image and never guesses a date.
+
+How the summary is used:
+
+- **Phone and Mac alarm**: the first alarm goes off at once, exactly as before, without waiting. A second message titled "Slot details" with the summary follows a moment later. Both the phone app and the Mac alarm ring for every message on the channel, so you may need to dismiss twice.
+- **Telegram bot, email, WhatsApp**: the summary is the first line, followed by the group's full original message when it had one, never shortened (WhatsApp itself cuts at 1000 characters). The email subject also carries the summary.
+- **Text messages without an image** are sent as they are.
+
+If tesseract is not installed, cannot read the image, takes longer than 15 seconds, or finds no location or date, the alert still goes out exactly as it would without this feature. Set `OCR_ENABLED=false` to turn it off.
+
+Install tesseract once on each computer that runs the watcher:
+
+- **Mac**: `brew install tesseract`
+- **Oracle Linux 9 server**: `sudo dnf install -y oracle-epel-release-el9 && sudo dnf install -y tesseract tesseract-langpack-eng` (package names not yet confirmed on the server; `tesseract-langpack-eng` may already come with `tesseract`). dnf needs the extra swap that `setup_server.sh` adds on the 1 GB server, so run it after the first deploy, then restart the watcher.
+- **Ubuntu**: `sudo apt-get install -y tesseract-ocr`
 
 ## Android phone app (Visa Alarm)
 
@@ -183,7 +204,9 @@ h1b-appointment-watcher/
   setup.sh                one-time setup after downloading
   telegram-watcher/       the watcher (Python)
     h1b_slot_watcher.py   the program
+    slot_image.py         reads screenshots (tesseract) and builds the summary line
     test_filter.py        tests for the alert rules
+    test_slot_image.py    tests for screenshot reading and what each channel gets
     requirements.txt      Python packages it needs
     .env.example          blank template of the settings file
     cloud/                scripts that create the Oracle server and copy the watcher to it

@@ -17,6 +17,8 @@ from pathlib import Path
 
 import requests
 
+import slot_image
+
 HERE = Path(__file__).resolve().parent
 log = logging.getLogger("h1b_watcher")
 
@@ -192,19 +194,24 @@ def send_telegram_bot(text, image_bytes):
     base = f"https://api.telegram.org/bot{os.environ['TG_BOT_TOKEN']}"
     chat = os.environ["TG_BOT_CHAT_ID"]
     if image_bytes is not None:
+        # Captions stop at 1024 characters, so a longer message follows the
+        # photo as its own message instead of being cut.
+        long_text = len(text) > 1024
         resp = requests.post(f"{base}/sendPhoto", timeout=30,
-                             data={"chat_id": chat, "caption": text[:1000]},
+                             data={"chat_id": chat, "caption": "" if long_text else text},
                              files={"photo": ("alert.jpg", image_bytes)})
+        if resp.ok and long_text:
+            resp = requests.post(f"{base}/sendMessage", timeout=15, data={"chat_id": chat, "text": text})
     else:
         resp = requests.post(f"{base}/sendMessage", timeout=15, data={"chat_id": chat, "text": text})
     if not resp.ok:
         raise RuntimeError(f"{resp.status_code} {resp.text[:300]}")
 
 
-def send_ntfy(text):
+def send_ntfy(text, title="VISA SLOT", priority="urgent"):
     """Push the alert to the ntfy topic the phone app and laptop alarm listen on."""
     resp = requests.post(f"https://ntfy.sh/{os.environ['NTFY_TOPIC']}", data=text.encode("utf-8"), timeout=15,
-                         headers={"Title": "VISA SLOT", "Priority": "urgent", "Tags": "rotating_light"})
+                         headers={"Title": title, "Priority": priority, "Tags": "rotating_light"})
     resp.raise_for_status()
 
 
@@ -259,11 +266,11 @@ def make_handler(client):
             log.info("Skipped admin message: %s", text[:80])
             return
 
-        alert = text if text else "New slot photo posted"
         # Ring the phone app and laptop alarm first: they are the loud ones.
+        # Reading the screenshot can take seconds, so it never delays this.
         if os.environ.get("NTFY_TOPIC"):
             try:
-                await asyncio.to_thread(send_ntfy, alert)
+                await asyncio.to_thread(send_ntfy, text or "New slot photo posted")
             except Exception as e:
                 log.error("ntfy push failed: %s", e)
 
@@ -274,6 +281,19 @@ def make_handler(client):
             except Exception:
                 log.exception("Could not download alert image")
 
+        # Location, visa type and dates read from the screenshot, or None.
+        summary = None
+        if image_bytes is not None:
+            summary = await asyncio.to_thread(slot_image.read_slot_image, image_bytes)
+            if summary and os.environ.get("NTFY_TOPIC"):
+                try:
+                    await asyncio.to_thread(send_ntfy, summary, "Slot details", "high")
+                except Exception as e:
+                    log.error("ntfy details push failed: %s", e)
+        # The full original message, never shortened, with the summary on top.
+        caption = slot_image.compose_alert(text, summary)
+        alert = caption or "New slot photo posted"
+
         targets = (("me", "Saved Messages"), (recipient, f"DM {recipient}"))
         if not _env_bool("TELEGRAM_COPIES_ENABLED", True):
             targets = ()
@@ -281,19 +301,20 @@ def make_handler(client):
             try:
                 # If the image download failed, fall back to the alert text so
                 # an uncaptioned image still produces a message.
-                await _send_copy(client, target, text if image_bytes is not None else alert, image_bytes)
+                await _send_copy(client, target, caption if image_bytes is not None else alert, image_bytes)
             except Exception as e:
                 log.error("Could not send to %s: %s", label, e)
 
         if os.environ.get("TG_BOT_TOKEN") and os.environ.get("TG_BOT_CHAT_ID"):
             try:
-                await asyncio.to_thread(send_telegram_bot, text if image_bytes is not None else alert, image_bytes)
+                await asyncio.to_thread(send_telegram_bot, caption if image_bytes is not None else alert, image_bytes)
             except Exception as e:
                 log.error("Telegram bot send failed: %s", e)
 
         if _env_bool("EMAIL_ENABLED", True):
             try:
-                await asyncio.to_thread(send_email, "H1B slot alert", alert)
+                subject = f"H1B slot alert: {summary}" if summary else "H1B slot alert"
+                await asyncio.to_thread(send_email, subject, alert)
             except Exception as e:
                 log.error("Email send failed: %s", e)
                 ssh, ip = _server_commands()

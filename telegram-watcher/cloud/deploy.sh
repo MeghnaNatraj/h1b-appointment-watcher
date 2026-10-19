@@ -12,7 +12,7 @@ HERE=$(cd "$(dirname "$0")/.." && pwd)
 SSH=(ssh -i "$KEY" -o StrictHostKeyChecking=accept-new "$USER_AT")
 APP=/opt/h1b-watcher
 
-FILES=("$HERE/h1b_slot_watcher.py" "$HERE/requirements.txt" "$HERE/cloud/setup_server.sh")
+FILES=("$HERE/h1b_slot_watcher.py" "$HERE/slot_image.py" "$HERE/requirements.txt" "$HERE/cloud/setup_server.sh")
 if ! "${SSH[@]}" "sudo test -f $APP/session.session"; then
   FILES+=("$HERE/session.session")
 fi
