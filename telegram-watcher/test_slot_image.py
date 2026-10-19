@@ -165,14 +165,13 @@ class HandlerTest(unittest.TestCase):
     def run_handler(self, text, image, summary):
         calls = []
         env = {"TELEGRAM_RECIPIENT": "someone", "NTFY_TOPIC": "t", "TG_BOT_TOKEN": "x", "TG_BOT_CHAT_ID": "1",
-               "EMAIL_ENABLED": "true", "WA_ENABLED": "true", "TELEGRAM_COPIES_ENABLED": "false"}
+               "WA_ENABLED": "true", "TELEGRAM_COPIES_ENABLED": "false"}
         with mock.patch.dict(os.environ, env), \
                 mock.patch.object(w, "send_ntfy", lambda t, title="VISA SLOT", priority="urgent":
                                   calls.append(("ntfy", title, t))), \
                 mock.patch.object(w.slot_image, "read_slot_image",
                                   lambda b: calls.append(("ocr",)) or summary), \
                 mock.patch.object(w, "send_telegram_bot", lambda t, b: calls.append(("bot", t))), \
-                mock.patch.object(w, "send_email", lambda subj, body: calls.append(("email", subj, body))), \
                 mock.patch.object(w, "send_whatsapp", lambda t, report=True: calls.append(("wa", t))):
             asyncio.run(w.make_handler(FakeClient(calls))(FakeEvent(text, image)))
         return calls
@@ -184,7 +183,6 @@ class HandlerTest(unittest.TestCase):
             ("ocr",),
             ("ntfy", "Slot details", "Hyderabad, 1 date: Nov 4 2026"),
             ("bot", "Hyderabad, 1 date: Nov 4 2026"),
-            ("email", "H1B slot alert: Hyderabad, 1 date: Nov 4 2026", "Hyderabad, 1 date: Nov 4 2026"),
             ("wa", "Hyderabad, 1 date: Nov 4 2026"),
         ])
 
@@ -201,7 +199,6 @@ class HandlerTest(unittest.TestCase):
             ("ntfy", "VISA SLOT", "New slot photo posted"),
             ("ocr",),
             ("bot", ""),
-            ("email", "H1B slot alert", "New slot photo posted"),
             ("wa", "New slot photo posted"),
         ])
 
@@ -209,7 +206,6 @@ class HandlerTest(unittest.TestCase):
         calls = self.run_handler("Chennai 14 Nov", False, "unused")
         self.assertNotIn(("ocr",), calls)
         self.assertEqual(calls[0], ("ntfy", "VISA SLOT", "Chennai 14 Nov"))
-        self.assertIn(("email", "H1B slot alert", "Chennai 14 Nov"), calls)
 
 
 @unittest.skipUnless(s.shutil.which("tesseract"), "tesseract not installed")

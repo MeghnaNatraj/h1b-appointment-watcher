@@ -8,11 +8,9 @@ import io
 import logging
 import os
 import re
-import smtplib
 import sys
 import time
 import traceback
-from email.mime.text import MIMEText
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -84,28 +82,6 @@ def _env_bool(name, default=False):
     return os.environ.get(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
 
 
-def send_email(subject, body, recipients=None):
-    sender = os.environ["GMAIL_ADDRESS"]
-    if recipients is None:
-        recipients = [r.strip() for r in os.environ["EMAIL_RECIPIENTS"].split(",") if r.strip()]
-    msg = MIMEText(body)
-    msg["Subject"] = subject
-    msg["From"] = sender
-    msg["To"] = ", ".join(recipients)
-    # Gmail sometimes drops the connection ("Connection unexpectedly closed"),
-    # so retry a couple of times before giving up.
-    for attempt in range(3):
-        try:
-            with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as s:
-                s.login(sender, os.environ["GMAIL_APP_PASSWORD"])
-                s.send_message(msg, to_addrs=recipients)
-            return
-        except (smtplib.SMTPServerDisconnected, OSError):
-            if attempt == 2:
-                raise
-            time.sleep(5 * (attempt + 1))
-
-
 PROBLEM_REPEAT_HOURS = 6
 WATCHER_DIR = "h1b-appointment-watcher/telegram-watcher"
 REPO = "MeghnaNatraj/h1b-appointment-watcher"
@@ -117,11 +93,33 @@ def _server_commands():
     return ssh, ip
 
 
-def report_problem(key, what, fix, details=""):
-    """Email the user what broke and how to fix it, at most once per 6 hours per `key`.
+def notify_owner(title, body):
+    """Tell the user something that is not a slot alert, by Telegram bot and the alarm channel.
 
-    If Gmail itself is the problem, fall back to signalling a failure to the
-    healthchecks.io check, which emails from its own servers with this text.
+    Raises if neither channel could be reached.
+    """
+    sent = False
+    if os.environ.get("TG_BOT_TOKEN") and os.environ.get("TG_BOT_CHAT_ID"):
+        try:
+            send_telegram_bot(f"{title}\n\n{body}", None)
+            sent = True
+        except Exception as e:
+            log.error("Bot notice failed: %s", e)
+    if os.environ.get("NTFY_TOPIC"):
+        try:
+            send_ntfy(body, title, "high")
+            sent = True
+        except Exception as e:
+            log.error("ntfy notice failed: %s", e)
+    if not sent:
+        raise RuntimeError("no Telegram bot or ntfy channel reachable")
+
+
+def report_problem(key, what, fix, details=""):
+    """Tell the user what broke and how to fix it, at most once per 6 hours per `key`.
+
+    If neither the Telegram bot nor ntfy can be reached, fall back to signalling
+    a failure to the healthchecks.io check, which raises its own down alert.
     """
     marker = HERE / f".problem-{key}"
     if marker.exists() and time.time() - marker.stat().st_mtime < PROBLEM_REPEAT_HOURS * 3600:
@@ -131,9 +129,9 @@ def report_problem(key, what, fix, details=""):
         body += f"\nError: {details}\n"
     subject = f"H1B watcher stopped: {what.split(' (')[0]}"
     try:
-        send_email(subject, body, [os.environ["GMAIL_ADDRESS"]])
+        notify_owner(subject, body)
     except Exception as e:
-        log.error("Could not email problem report %s: %s", key, e)
+        log.error("Could not send problem report %s: %s", key, e)
         url = os.environ.get("HEALTHCHECK_URL")
         if url:
             try:
@@ -176,12 +174,12 @@ def send_whatsapp(text, report=True):
             return
         log.warning("WhatsApp send with template %s failed: %s %s", name, resp.status_code, resp.text)
     if not report:
-        # Test mode: surface the failure instead of emailing a problem report.
+        # Test mode: surface the failure instead of sending a problem report.
         raise RuntimeError(f"{resp.status_code} {resp.text[:300]}")
     ssh, ip = _server_commands()
     report_problem(
         "whatsapp",
-        "WhatsApp alerts (email still works).",
+        "WhatsApp alerts (the alarm and Telegram bot still work).",
         "- Error 190 (token): Meta Business settings > System users > H1B Watcher Bot > Generate token, "
         "put it in .env as WA_ACCESS_TOKEN, run cloud/deploy.sh " + ip + "\n"
         "- Error 132001 (template): check WhatsApp Manager > Message templates",
@@ -223,10 +221,9 @@ def send_ntfy(text, title="VISA SLOT", priority="urgent"):
 CHANNEL_SETTINGS = {
     "ntfy": ["NTFY_TOPIC"],
     "bot": ["TG_BOT_TOKEN", "TG_BOT_CHAT_ID"],
-    "email": ["GMAIL_ADDRESS", "GMAIL_APP_PASSWORD"],
     "whatsapp": ["WA_PHONE_NUMBER_ID", "WA_ACCESS_TOKEN", "WA_RECIPIENT"],
 }
-CHANNEL_FLAGS = {"email": ("EMAIL_ENABLED", True), "whatsapp": ("WA_ENABLED", False)}
+CHANNEL_FLAGS = {"whatsapp": ("WA_ENABLED", False)}
 
 
 def _missing_settings(name):
@@ -249,21 +246,13 @@ def build_channels(test=False):
     """List the non-Telethon alert channels as [(name, enabled, send)], ntfy first.
 
     send(alert, caption, image_bytes, summary) is blocking; `caption` is the text
-    that goes with an image and `summary` the details read from it, or None. Shared by the live handler and --test-alert. In test
-    mode email goes only to GMAIL_ADDRESS, never to EMAIL_RECIPIENTS.
+    that goes with an image and `summary` the details read from it, or None.
+    Shared by the live handler and --test-alert.
     """
-    def email(alert, caption, image_bytes, summary=None):
-        subject = f"H1B slot alert: {summary}" if summary else "H1B slot alert"
-        if test:
-            send_email("TEST: " + subject, alert, [os.environ["GMAIL_ADDRESS"]])
-        else:
-            send_email(subject, alert)
-
     return [
         ("ntfy", bool(os.environ.get("NTFY_TOPIC")), lambda alert, caption, img, summary=None: send_ntfy(alert)),
         ("bot", all(os.environ.get(k) for k in CHANNEL_SETTINGS["bot"]),
          lambda alert, caption, img, summary=None: send_telegram_bot(caption, img)),
-        ("email", _env_bool("EMAIL_ENABLED", True), email),
         ("whatsapp", _env_bool("WA_ENABLED"),
          lambda alert, caption, img, summary=None: send_whatsapp(alert, report=not test)),
     ]
@@ -329,15 +318,6 @@ def make_handler(client):
                 await asyncio.to_thread(send, alert, caption, image_bytes, summary)
             except Exception as e:
                 log.error("%s send failed: %s", name, e)
-                if name == "email":
-                    ssh, ip = _server_commands()
-                    await asyncio.to_thread(
-                        report_problem, "email",
-                        "Email alerts (Gmail refused to send).",
-                        "New app password at myaccount.google.com/apppasswords, put it in .env as "
-                        "GMAIL_APP_PASSWORD, run cloud/deploy.sh " + ip,
-                        f"Gmail error: {e}",
-                    )
 
         # Ring the phone app and laptop alarm first: they are the loud ones.
         # Reading the screenshot can take seconds, so it never delays this.
@@ -395,9 +375,8 @@ async def heartbeat(days):
         try:
             if _env_bool("WA_ENABLED"):
                 await asyncio.to_thread(send_whatsapp, note)
-            elif _env_bool("EMAIL_ENABLED", True):
-                await asyncio.to_thread(send_email, "H1B watcher still running", note,
-                                        [os.environ["GMAIL_ADDRESS"]])
+            else:
+                await asyncio.to_thread(notify_owner, "H1B watcher still running", note)
             log.info("Heartbeat sent")
         except Exception as e:
             log.error("Heartbeat failed: %s", e)
@@ -405,7 +384,7 @@ async def heartbeat(days):
 
 
 async def announce_template_approval(waba_id, minutes=15):
-    """Send one WhatsApp + email once the preferred WhatsApp template is approved.
+    """Tell the user once the preferred WhatsApp template is approved (or rejected).
 
     The first name in WA_TEMPLATE may still be in Meta review when deployed.
     This polls its status and, the first time it is APPROVED, tells the user
@@ -425,19 +404,15 @@ async def announce_template_approval(waba_id, minutes=15):
             )
             status = next((t["status"] for t in resp.json().get("data", []) if t["name"] == name), None)
             if status == "APPROVED":
-                note = "Meta approved the WhatsApp template. H1B slot alerts will now arrive on WhatsApp and email."
+                note = f"Meta approved the WhatsApp template {name}. WhatsApp alerts now use it."
                 await asyncio.to_thread(send_whatsapp, note)
-                if _env_bool("EMAIL_ENABLED", True):
-                    await asyncio.to_thread(send_email, "H1B watcher: WhatsApp alerts are live", note,
-                                            [os.environ["GMAIL_ADDRESS"]])
+                await asyncio.to_thread(notify_owner, "WhatsApp template approved", note)
                 marker.touch()
                 log.info("Template %s approved, user notified", name)
                 return
             if status == "REJECTED":
-                note = f"Meta rejected the WhatsApp template {name}. Alerts still go by email."
-                if _env_bool("EMAIL_ENABLED", True):
-                    await asyncio.to_thread(send_email, "H1B watcher: WhatsApp template rejected", note,
-                                            [os.environ["GMAIL_ADDRESS"]])
+                note = f"Meta rejected the WhatsApp template {name}. WhatsApp keeps using the next one in WA_TEMPLATE."
+                await asyncio.to_thread(notify_owner, "WhatsApp template rejected", note)
                 marker.touch()
                 log.warning("Template %s rejected", name)
                 return
@@ -515,8 +490,7 @@ def run_test_alert(message, only=None):
             failed = True
             print(f"{name}: FAILED ({e})")
             continue
-        note = f" (to {os.environ['GMAIL_ADDRESS']} only, not EMAIL_RECIPIENTS)" if name == "email" else ""
-        print(f"{name}: sent{note}")
+        print(f"{name}: sent")
     print("telegram user-account copies: not tested (the Telethon session is never used here)")
     return 1 if failed else 0
 
@@ -525,7 +499,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--test-alert", nargs="?", const="", metavar="MESSAGE",
                         help="send a TEST message through every enabled channel and exit (no Telegram login)")
-    parser.add_argument("--channels", help="with --test-alert, only these (comma-separated: ntfy,bot,email,whatsapp)")
+    parser.add_argument("--channels", help="with --test-alert, only these (comma-separated: ntfy,bot,whatsapp)")
     args = parser.parse_args()
     load_env(HERE / ".env")
     if args.test_alert is not None:
@@ -550,7 +524,7 @@ def main():
             report_problem(
                 "crash",
                 f"The watcher (crashed with {name}; it auto-restarts).",
-                "Paste this email into Claude Code. Logs: "
+                "Paste this message into Claude Code. Logs: "
                 f"{ssh} sudo journalctl -u h1b-watcher -n 100",
                 traceback.format_exc()[-1500:],
             )

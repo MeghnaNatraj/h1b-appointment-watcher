@@ -23,7 +23,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 grep -v '^HEARTBEAT_DAYS=' "$HERE/.env" > "$TMP/.env"
 echo "HEARTBEAT_DAYS=0" >> "$TMP/.env"
-# Used in problem-report emails so the fix commands are copy-pasteable.
+# Used in problem reports so the fix commands are copy-pasteable.
 grep -v -e '^SERVER_SSH=' -e '^SERVER_IP=' "$TMP/.env" > "$TMP/.env.new" && mv "$TMP/.env.new" "$TMP/.env"
 echo "SERVER_IP=$IP" >> "$TMP/.env"
 echo "SERVER_SSH=ssh -i ~/.ssh/oracle_h1b $USER_AT" >> "$TMP/.env"
