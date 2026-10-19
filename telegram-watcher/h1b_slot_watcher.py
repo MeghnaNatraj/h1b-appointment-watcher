@@ -2,6 +2,7 @@
 
 Secrets and settings live in .env next to this file (see .env.example).
 """
+import argparse
 import asyncio
 import io
 import logging
@@ -141,7 +142,7 @@ def report_problem(key, what, fix, details=""):
     log.warning("Problem reported (%s): %s", key, what)
 
 
-def send_whatsapp(text):
+def send_whatsapp(text, report=True):
     """Send `text` as a WhatsApp template message.
 
     WA_TEMPLATE may list several templates, comma-separated, in order of
@@ -172,6 +173,9 @@ def send_whatsapp(text):
         if resp.ok:
             return
         log.warning("WhatsApp send with template %s failed: %s %s", name, resp.status_code, resp.text)
+    if not report:
+        # Test mode: surface the failure instead of emailing a problem report.
+        raise RuntimeError(f"{resp.status_code} {resp.text[:300]}")
     ssh, ip = _server_commands()
     report_problem(
         "whatsapp",
@@ -206,6 +210,55 @@ def send_ntfy(text):
     resp = requests.post(f"https://ntfy.sh/{os.environ['NTFY_TOPIC']}", data=text.encode("utf-8"), timeout=15,
                          headers={"Title": "VISA SLOT", "Priority": "urgent", "Tags": "rotating_light"})
     resp.raise_for_status()
+
+
+# Settings each channel needs, and the on/off flag for the ones that have one.
+CHANNEL_SETTINGS = {
+    "ntfy": ["NTFY_TOPIC"],
+    "bot": ["TG_BOT_TOKEN", "TG_BOT_CHAT_ID"],
+    "email": ["GMAIL_ADDRESS", "GMAIL_APP_PASSWORD"],
+    "whatsapp": ["WA_PHONE_NUMBER_ID", "WA_ACCESS_TOKEN", "WA_RECIPIENT"],
+}
+CHANNEL_FLAGS = {"email": ("EMAIL_ENABLED", True), "whatsapp": ("WA_ENABLED", False)}
+
+
+def _missing_settings(name):
+    return [k for k in CHANNEL_SETTINGS[name] if not os.environ.get(k)]
+
+
+def channel_skip_reason(name):
+    """Why a channel will not send ("disabled ..." or "missing ..."), or None if it will."""
+    if name in CHANNEL_FLAGS:
+        flag, default = CHANNEL_FLAGS[name]
+        if not _env_bool(flag, default):
+            return f"disabled ({flag} is off)"
+    missing = _missing_settings(name)
+    if missing:
+        return "missing " + ", ".join(missing)
+    return None
+
+
+def build_channels(test=False):
+    """List the non-Telethon alert channels as [(name, enabled, send)], ntfy first.
+
+    send(alert, caption, image_bytes) is blocking; `caption` is the text that
+    goes with an image. Shared by the live handler and --test-alert. In test
+    mode email goes only to GMAIL_ADDRESS, never to EMAIL_RECIPIENTS.
+    """
+    def email(alert, caption, image_bytes):
+        if test:
+            send_email("TEST: H1B slot alert", alert, [os.environ["GMAIL_ADDRESS"]])
+        else:
+            send_email("H1B slot alert", alert)
+
+    return [
+        ("ntfy", bool(os.environ.get("NTFY_TOPIC")), lambda alert, caption, img: send_ntfy(alert)),
+        ("bot", all(os.environ.get(k) for k in CHANNEL_SETTINGS["bot"]),
+         lambda alert, caption, img: send_telegram_bot(caption, img)),
+        ("email", _env_bool("EMAIL_ENABLED", True), email),
+        ("whatsapp", _env_bool("WA_ENABLED"),
+         lambda alert, caption, img: send_whatsapp(alert, report=not test)),
+    ]
 
 
 async def _send_copy(client, target, text, image_bytes):
@@ -260,12 +313,27 @@ def make_handler(client):
             return
 
         alert = text if text else "New slot photo posted"
-        # Ring the phone app and laptop alarm first: they are the loud ones.
-        if os.environ.get("NTFY_TOPIC"):
+        channels = build_channels()
+
+        async def run_channel(name, enabled, send, caption, image_bytes):
+            if not enabled:
+                return
             try:
-                await asyncio.to_thread(send_ntfy, alert)
+                await asyncio.to_thread(send, alert, caption, image_bytes)
             except Exception as e:
-                log.error("ntfy push failed: %s", e)
+                log.error("%s send failed: %s", name, e)
+                if name == "email":
+                    ssh, ip = _server_commands()
+                    await asyncio.to_thread(
+                        report_problem, "email",
+                        "Email alerts (Gmail refused to send).",
+                        "New app password at myaccount.google.com/apppasswords, put it in .env as "
+                        "GMAIL_APP_PASSWORD, run cloud/deploy.sh " + ip,
+                        f"Gmail error: {e}",
+                    )
+
+        # Ring the phone app and laptop alarm first: they are the loud ones.
+        await run_channel(*channels[0], alert, None)
 
         image_bytes = None
         if has_image:
@@ -285,31 +353,9 @@ def make_handler(client):
             except Exception as e:
                 log.error("Could not send to %s: %s", label, e)
 
-        if os.environ.get("TG_BOT_TOKEN") and os.environ.get("TG_BOT_CHAT_ID"):
-            try:
-                await asyncio.to_thread(send_telegram_bot, text if image_bytes is not None else alert, image_bytes)
-            except Exception as e:
-                log.error("Telegram bot send failed: %s", e)
-
-        if _env_bool("EMAIL_ENABLED", True):
-            try:
-                await asyncio.to_thread(send_email, "H1B slot alert", alert)
-            except Exception as e:
-                log.error("Email send failed: %s", e)
-                ssh, ip = _server_commands()
-                await asyncio.to_thread(
-                    report_problem, "email",
-                    "Email alerts (Gmail refused to send).",
-                    "New app password at myaccount.google.com/apppasswords, put it in .env as "
-                    "GMAIL_APP_PASSWORD, run cloud/deploy.sh " + ip,
-                    f"Gmail error: {e}",
-                )
-
-        if _env_bool("WA_ENABLED"):
-            try:
-                await asyncio.to_thread(send_whatsapp, alert)
-            except Exception as e:
-                log.error("WhatsApp send failed: %s", e)
+        caption = text if image_bytes is not None else alert
+        for channel in channels[1:]:
+            await run_channel(*channel, caption, image_bytes)
 
         log.info("Alert sent: %s", alert[:80])
 
@@ -427,8 +473,45 @@ def _report_login_needed(details):
     )
 
 
+def run_test_alert(message, only=None):
+    """Send a TEST message through every enabled non-Telethon channel; return the exit code.
+
+    Never touches the Telegram user-account session (a second login can log it out).
+    """
+    alert = "TEST: " + (message or "H1B watcher alert channel test, please ignore")
+    failed = False
+    for name, enabled, send in build_channels(test=True):
+        if only and name not in only:
+            continue
+        reason = channel_skip_reason(name)
+        if reason or not enabled:
+            print(f"{name}: skipped ({reason or 'not enabled'})")
+            continue
+        try:
+            send(alert, alert, None)
+        except Exception as e:
+            failed = True
+            print(f"{name}: FAILED ({e})")
+            continue
+        note = f" (to {os.environ['GMAIL_ADDRESS']} only, not EMAIL_RECIPIENTS)" if name == "email" else ""
+        print(f"{name}: sent{note}")
+    print("telegram user-account copies: not tested (the Telethon session is never used here)")
+    return 1 if failed else 0
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--test-alert", nargs="?", const="", metavar="MESSAGE",
+                        help="send a TEST message through every enabled channel and exit (no Telegram login)")
+    parser.add_argument("--channels", help="with --test-alert, only these (comma-separated: ntfy,bot,email,whatsapp)")
+    args = parser.parse_args()
     load_env(HERE / ".env")
+    if args.test_alert is not None:
+        only = {c.strip() for c in args.channels.split(",") if c.strip()} if args.channels else None
+        unknown = (only or set()) - set(CHANNEL_SETTINGS)
+        if unknown:
+            parser.error("unknown channel(s): " + ", ".join(sorted(unknown)))
+        sys.exit(run_test_alert(args.test_alert, only))
     setup_logging()
     try:
         _run()

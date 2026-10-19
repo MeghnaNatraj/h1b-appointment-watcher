@@ -148,6 +148,9 @@ IP=$(cat telegram-watcher/cloud/server_ip.txt)
 | See if it is running | `ssh -i ~/.ssh/oracle_h1b opc@$IP systemctl is-active h1b-watcher` |
 | See the last 50 log lines | `ssh -i ~/.ssh/oracle_h1b opc@$IP sudo journalctl -u h1b-watcher -n 50` |
 | Restart it | `ssh -i ~/.ssh/oracle_h1b opc@$IP sudo systemctl restart h1b-watcher` |
+| Test every alert channel (sends a real TEST message; email goes only to GMAIL_ADDRESS; the Telegram login is never used) | `ssh -i ~/.ssh/oracle_h1b opc@$IP 'sudo -u watcher /opt/h1b-watcher/venv/bin/python /opt/h1b-watcher/h1b_slot_watcher.py --test-alert'` |
+
+The service runs as user `watcher` from /opt/h1b-watcher, with .env next to the script, so the test command must run as that user. Add `--channels ntfy,bot,email,whatsapp` (any subset) to limit it, or a message after `--test-alert` to change the text.
 
 ## What the log looks like
 
