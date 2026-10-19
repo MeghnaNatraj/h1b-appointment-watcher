@@ -1,0 +1,41 @@
+plugins {
+    id "com.android.application"
+}
+
+// The private ntfy topic the watcher posts to. Set it in ~/.gradle/gradle.properties
+// or pass -PntfyTopic=... so it never lands in the repo.
+def ntfyTopic = project.findProperty("ntfyTopic")
+if (!ntfyTopic) {
+    throw new GradleException("Set ntfyTopic, e.g. ./gradlew assembleRelease -PntfyTopic=visa-alert-<random>")
+}
+
+android {
+    namespace "com.meghna.visaalarm"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.meghna.visaalarm"
+        minSdk 26
+        targetSdk 34
+        versionCode 2
+        versionName "1.1"
+        buildConfigField "String", "NTFY_TOPIC", "\"${ntfyTopic}\""
+    }
+
+    buildFeatures {
+        buildConfig true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // Signed with the local debug key so the APK installs directly.
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

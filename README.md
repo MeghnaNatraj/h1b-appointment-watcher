@@ -6,7 +6,9 @@ Watches a Telegram group where people report open US visa (H1B/H4) interview slo
 
 - Watches the group 24 hours a day on a free cloud server, so your laptop can be off
 - Ignores noise: the group's repeating notice and "NA" (no slots) messages
-- Sends each real alert by email, and by WhatsApp once Meta approves the template
+- Rings a full-screen alarm on your Android phone, even on silent or vibrate
+- Sounds a loud alarm with a pop-up on your Mac
+- Sends each real alert from a Telegram bot (just the message), by WhatsApp and by email
 - Catches up on messages it missed after a restart, so alerts arrive late rather than never
 - Emails you if something breaks, with the steps to fix it
 - A separate free service emails you if the watcher stops completely
@@ -25,11 +27,16 @@ For every new message it:
 
 ## What you get
 
-| Channel | Status today |
+| Channel | What you get |
 |---|---|
-| **Email** to every address in `EMAIL_RECIPIENTS` | On |
-| **WhatsApp** | On, but not delivering: Meta has not approved the `h1b_slot_update` template. You get an email the moment it is approved. |
-| **Telegram** copy to Saved Messages and a DM | Off |
+| **Android phone app** (Visa Alarm) | Full-screen red alarm at alarm volume, rings even on silent or vibrate, until you tap Dismiss or Open Telegram |
+| **Mac alarm** | Volume to max, alarm sound and a spoken "Visa slot available", plus a pop-up, until you click it |
+| **Telegram bot** | Just the group's message (photo with caption, or text). Set a loud sound for the bot's chat on your phone |
+| **WhatsApp** | The message inside an approved template: "Your appointment alert has an update: ... Open Telegram to book." |
+| **Email** to every address in `EMAIL_RECIPIENTS` | The message |
+| **Telegram** copy to Saved Messages and a DM from your own account | Off by default: Telegram never notifies you about your own messages, so the bot replaced this |
+
+The phone app and the Mac alarm both listen to a private channel on [ntfy.sh](https://ntfy.sh), a free push service. The watcher posts each alert to that channel (`NTFY_TOPIC`), and every device listening to it goes off at once. The channel name is long and random, so it works as a password; keep it private.
 
 Besides alerts, you may get two other kinds of email:
 
@@ -81,8 +88,52 @@ All settings live in `.env` (template: `telegram-watcher/.env.example`).
 | `EMAIL_RECIPIENTS` | Who gets alert emails | Addresses separated by commas |
 | `TELEGRAM_COPIES_ENABLED`, `TELEGRAM_RECIPIENT` | Telegram copies on or off, and the username (no @) that gets a DM | Your Telegram username |
 | `WA_ENABLED` and the other `WA_` settings | WhatsApp alerts via Meta's WhatsApp Cloud API | Meta for Developers, your WhatsApp app; templates in WhatsApp Manager |
+| `TG_BOT_TOKEN`, `TG_BOT_CHAT_ID` | The Telegram bot that sends you each alert | See "Telegram bot" below |
+| `NTFY_TOPIC` | Private channel for the phone app and Mac alarm | Make one up: `echo visa-alert-$(openssl rand -hex 8)` |
 | `HEALTHCHECK_URL` | The "still alive" link | healthchecks.io, your check's ping URL |
 | `HEARTBEAT_DAYS` | Optional "still running" note every N days | `0` turns it off (healthchecks.io does this job instead) |
+
+## Android phone app (Visa Alarm)
+
+A one-button app in `android-app/`. Tap **START** once; it asks for each permission it needs (notifications, full-screen alerts, unrestricted battery), then listens in the background and restarts by itself after a reboot. **Test alarm** shows what an alert looks like.
+
+Build it on a Mac (free tools, about 2 GB):
+
+```
+brew install openjdk@17 gradle
+brew install --cask android-commandlinetools
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17 ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+yes | sdkmanager --licenses
+sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+cd android-app
+./gradlew assembleRelease -PntfyTopic=<your NTFY_TOPIC>
+```
+
+The app is `android-app/app/build/outputs/apk/release/app-release.apk`. The channel name is built into the app, so build your own copy rather than sharing one.
+
+Install it, either way:
+
+- **By cable:** on the phone, turn on Developer options (Settings, About phone, Software information, tap Build number 7 times), then Developer options, USB debugging. On Samsung, turn off Settings, Security and privacy, Auto Blocker first. Plug in, tap Allow on the phone, then run `$ANDROID_HOME/platform-tools/adb install -r app-release.apk`.
+- **Without a cable:** email the APK to yourself, open it on the phone and allow installing from Gmail.
+
+Then open Visa Alarm and tap **START**.
+
+## Mac alarm
+
+```
+laptop-alarm/install.sh <your NTFY_TOPIC>
+```
+
+Installs a background job that starts at login. When an alert arrives it turns the volume to max, loops an alarm sound and a spoken warning, and shows a pop-up until you click Dismiss or Open Telegram, then puts the volume back. Remove it with `laptop-alarm/install.sh --uninstall`.
+
+## Telegram bot
+
+Messages the watcher sends from your own account never notify you, so alerts come from a bot instead.
+
+1. In Telegram, message **@BotFather**, send `/newbot` and pick any name. It replies with a token: put it in `TG_BOT_TOKEN`.
+2. Open your new bot's chat and tap **Start** (a bot cannot message you until you do).
+3. Find your chat id: open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `message.chat.id` into `TG_BOT_CHAT_ID`.
+4. Deploy. On your phone, open the bot's chat, tap its name, Notifications, Customize, and pick a loud sound. Telegram does not sound for a chat that is open on screen, and stays quiet when the phone is on vibrate; the Android app covers those cases.
 
 ## Everyday commands
 
@@ -117,7 +168,7 @@ IP=$(cat telegram-watcher/cloud/server_ip.txt)
 
 ## Known issues
 
-- **WhatsApp**: fails with error 404 until the `h1b_slot_update` template is Active in WhatsApp Manager. No code change needed.
+- **WhatsApp wording**: a business number can only start a chat with wording Meta approved in advance, and Meta does not allow the message alone: the variable cannot be at the start or end, there must be enough fixed text around it, and for US numbers the category must be Utility (Meta does not deliver Marketing messages to +1 numbers). `h1b_slot_short` is the shortest wording that passes. A template still in review is skipped and the next one in `WA_TEMPLATE` is used; the watcher emails and WhatsApps you once the first one is approved.
 - **Email**: if the Gmail app password is revoked, email alerts fail (error "535" in the log). Create a new app password, update `GMAIL_APP_PASSWORD` in `~/.config/h1b-watcher/.env`, copy that file to `telegram-watcher/.env`, and run the deploy command.
 
 ## Moving to a new server
@@ -136,6 +187,8 @@ h1b-appointment-watcher/
     requirements.txt      Python packages it needs
     .env.example          blank template of the settings file
     cloud/                scripts that create the Oracle server and copy the watcher to it
+  android-app/            Visa Alarm, the one-button Android alarm app (Java)
+  laptop-alarm/           Mac alarm: listener.sh and install.sh
 ```
 
 ## Disclaimer
