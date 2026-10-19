@@ -183,6 +183,31 @@ def send_whatsapp(text):
     )
 
 
+def send_telegram_bot(text, image_bytes):
+    """Send the alert from a Telegram bot to the user's chat with it.
+
+    Copies sent from the user's own account never notify them, but a bot's
+    messages do, and that chat can get its own loud sound in Telegram.
+    """
+    base = f"https://api.telegram.org/bot{os.environ['TG_BOT_TOKEN']}"
+    chat = os.environ["TG_BOT_CHAT_ID"]
+    if image_bytes is not None:
+        resp = requests.post(f"{base}/sendPhoto", timeout=30,
+                             data={"chat_id": chat, "caption": text[:1000]},
+                             files={"photo": ("alert.jpg", image_bytes)})
+    else:
+        resp = requests.post(f"{base}/sendMessage", timeout=15, data={"chat_id": chat, "text": text})
+    if not resp.ok:
+        raise RuntimeError(f"{resp.status_code} {resp.text[:300]}")
+
+
+def send_ntfy(text):
+    """Push the alert to the ntfy topic the phone app and laptop alarm listen on."""
+    resp = requests.post(f"https://ntfy.sh/{os.environ['NTFY_TOPIC']}", data=text.encode("utf-8"), timeout=15,
+                         headers={"Title": "VISA SLOT", "Priority": "urgent", "Tags": "rotating_light"})
+    resp.raise_for_status()
+
+
 async def _send_copy(client, target, text, image_bytes):
     """Send a copy (not a forward) of the alert to one Telegram chat.
 
@@ -234,7 +259,14 @@ def make_handler(client):
             log.info("Skipped admin message: %s", text[:80])
             return
 
-        alert = text if text else "[image, no caption]"
+        alert = text if text else "New slot photo posted"
+        # Ring the phone app and laptop alarm first: they are the loud ones.
+        if os.environ.get("NTFY_TOPIC"):
+            try:
+                await asyncio.to_thread(send_ntfy, alert)
+            except Exception as e:
+                log.error("ntfy push failed: %s", e)
+
         image_bytes = None
         if has_image:
             try:
@@ -252,6 +284,12 @@ def make_handler(client):
                 await _send_copy(client, target, text if image_bytes is not None else alert, image_bytes)
             except Exception as e:
                 log.error("Could not send to %s: %s", label, e)
+
+        if os.environ.get("TG_BOT_TOKEN") and os.environ.get("TG_BOT_CHAT_ID"):
+            try:
+                await asyncio.to_thread(send_telegram_bot, text if image_bytes is not None else alert, image_bytes)
+            except Exception as e:
+                log.error("Telegram bot send failed: %s", e)
 
         if _env_bool("EMAIL_ENABLED", True):
             try:
