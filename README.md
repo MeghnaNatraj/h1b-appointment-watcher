@@ -38,13 +38,13 @@ For every new message it:
 
 The phone app and the Mac alarm both listen to a private channel on [ntfy.sh](https://ntfy.sh), a free push service. The watcher posts each alert to that channel (`NTFY_TOPIC`), and every device listening to it goes off at once. The channel name is long and random, so it works as a password; keep it private.
 
-healthchecks.io also posts to the same `NTFY_TOPIC` through its ntfy integration, so the phone app and the Mac alarm ring when the watcher stops, not only when a slot opens.
+healthchecks.io also posts to the same `NTFY_TOPIC` through a Webhook integration, so the phone app and the Mac alarm ring when the watcher stops, not only when a slot opens.
 
 Besides alerts, you may get two other kinds of email:
 
 - **"H1B watcher stopped: ..."** from the watcher itself, when something breaks (Telegram login expired, a crash). It says what happened and how to fix it, at most once every 6 hours per problem.
 - **A "down" email from healthchecks.io**, when the watcher stops sending its "still alive" signal (every 5 minutes). No email from them means it is working.
-  It also rings the phone app and the Mac alarm. To set that up, in healthchecks.io open Integrations, add ntfy, set the server to `https://ntfy.sh`, enter your `NTFY_TOPIC` as the topic, and set the priority for "down" events to Max (urgent). Assign it to your check.
+  It also rings the phone app and the Mac alarm. To set that up, in healthchecks.io open Integrations, add a Webhook, and assign it to your check. For "down" events use method POST, URL `https://ntfy.sh/<NTFY_TOPIC>`, body `Visa slot watcher stopped. No slot alerts until it is fixed. The fix steps are in your email.`, and headers `Title: Watcher stopped`, `Priority: urgent`, `Tags: warning`. For "up" events use POST, the same URL, body `Visa slot watcher is running again.`, and headers `Title: Watcher back`, `Priority: low`.
 
 ## Where it runs
 
