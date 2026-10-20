@@ -32,7 +32,7 @@ For every new message it:
 | Channel | What you get |
 |---|---|
 | **Android phone app** (Visa Alarm) | Full-screen red alarm at alarm volume, rings even on silent or vibrate, until you tap Dismiss or Open Telegram |
-| **Mac alarm** | Volume to max, alarm sound and a spoken "Visa slot available", plus a pop-up, until you click it |
+| **Mac alarm** | One alarm sound and one spoken "Visa slot available" at full volume, plus a pop-up that stays until you dismiss it. Further alerts in the next 5 minutes stay silent |
 | **Telegram bot** | Just the group's message (photo with caption, or text). Set a loud sound for the bot's chat on your phone |
 | **WhatsApp** | The message inside an approved template: "Update on your appointment alert: ... Complete." (Meta does not allow the message alone) |
 | **Telegram** copy to Saved Messages and a DM from your own account | Off by default: Telegram never notifies you about your own messages, so the bot replaced this |
@@ -142,7 +142,7 @@ Then open Visa Alarm and tap **START**.
 laptop-alarm/install.sh <your NTFY_TOPIC>
 ```
 
-Installs a background job that starts at login. When an alert arrives it turns the volume to max, loops an alarm sound and a spoken warning, and shows a pop-up until you click Dismiss or Open Telegram, then puts the volume back. Remove it with `laptop-alarm/install.sh --uninstall`.
+Installs a background job that starts at login. When an alert arrives it turns the volume up, plays one alarm sound, says "Visa slot available" once, puts the volume back and shows a pop-up that stays until you click Dismiss or Open Telegram. Alerts in the following 5 minutes (such as the "Slot details" follow-up) stay silent. Remove it with `laptop-alarm/install.sh --uninstall`.
 
 ## Telegram bot
 
