@@ -34,7 +34,7 @@ For every new message it:
 | **Android phone app** (Visa Alarm) | Full-screen red alarm at alarm volume, rings even on silent or vibrate, until you tap Dismiss or Open Telegram |
 | **Mac alarm** | Volume to max, alarm sound and a spoken "Visa slot available", plus a pop-up, until you click it |
 | **Telegram bot** | Just the group's message (photo with caption, or text). Set a loud sound for the bot's chat on your phone |
-| **WhatsApp** | The message inside an approved template: "Your appointment alert update: ... Thanks." (Meta does not allow the message alone) |
+| **WhatsApp** | The message inside an approved template: "Update on your appointment alert: ... Complete." (Meta does not allow the message alone) |
 | **Telegram** copy to Saved Messages and a DM from your own account | Off by default: Telegram never notifies you about your own messages, so the bot replaced this |
 
 The phone app and the Mac alarm both listen to a private channel on [ntfy.sh](https://ntfy.sh), a free push service. The watcher posts each alert to that channel (`NTFY_TOPIC`), and every device listening to it goes off at once. The channel name is long and random, so it works as a password; keep it private.
@@ -189,7 +189,7 @@ The service runs as user `watcher` from /opt/h1b-watcher, with .env next to the 
 
 ## Known issues
 
-- **WhatsApp wording**: a business number can only start a chat with wording Meta approved in advance, and Meta does not allow the message alone: the variable cannot be at the start or end, there must be enough fixed text around it, and for US numbers the category must be Utility (Meta does not deliver Marketing messages to +1 numbers). `h1b_slot_min` is the shortest wording submitted. A template still in review is skipped and the next one in `WA_TEMPLATE` is used; the watcher tells you in the Telegram bot chat and on WhatsApp once the first one is approved.
+- **WhatsApp wording**: a business number can only start a chat with wording Meta approved in advance, and Meta does not allow the message alone: the variable cannot be at the start or end, there must be enough fixed text around it, and for US numbers the category must be Utility (Meta does not deliver Marketing messages to +1 numbers). `h1b_slot_update_complete` is the preferred wording; Meta rejects shorter ones ("Update: {{1}}. Complete." has too few fixed words, and wording without "appointment" is classed as Marketing). A template still in review is skipped and the next one in `WA_TEMPLATE` is used; the watcher tells you in the Telegram bot chat and on WhatsApp once the first one is approved.
 
 ## Moving to a new server
 
