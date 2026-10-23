@@ -1,17 +1,16 @@
 # H1B Appointment Watcher
 
-Watches a Telegram group where people report open US visa (H1B/H4) interview slots, and tells you the moment a real slot is posted.
+Watches a Telegram group where people report open US visa (H1B/H4) interview slots, and rings the Visa Alarm app on your Android phone the moment a real slot is posted.
 
 ## Features
 
 - Watches the group 24 hours a day on a free cloud server, so your laptop can be off
-- Ignores noise: the group's repeating notice and "NA" (no slots) messages
+- Ignores noise: the group's repeating notice, admin posts and "NA" (no slots) messages
 - Rings a full-screen alarm on your Android phone, even on silent or vibrate
-- Sends each real alert from a Telegram bot (just the message) and by WhatsApp. No email
-- Reads the posted screenshot and adds a one-line summary, like "Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026"
+- Reads the posted screenshot and sends a one-line summary, like "Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026"
 - Catches up on messages it missed after a restart, so alerts arrive late rather than never
-- Tells you on Telegram and the alarms if something breaks, with the steps to fix it
-- A separate free service rings the alarms if the watcher stops completely
+- Rings the alarm if something breaks, with the steps to fix it
+- A separate free service rings the alarm if the watcher stops completely
 - Passwords and the Telegram login are never stored in this repo
 
 ## How it works
@@ -20,35 +19,23 @@ The public Telegram group **Regular_H1B_H4_VisaSlotsChecking** is where people p
 
 For every new message it:
 
-1. **Skips** the group's repeating "H1 H4 inperson slots availa..." notice.
+1. **Skips** the group's repeating "H1 H4 inperson slots availa..." notice and posts by group admins.
 2. **Skips** text that says "NA" or "N/A" as a word, meaning no slots. City names that contain those letters, like CHENNAI, are not skipped.
-3. **Treats as an alert** any photo or screenshot, and any other text.
-4. **Reads** the screenshot, if there is one, for the location, visa type and dates (see "Reading screenshots" below).
-5. **Sends** the alert on every channel that is turned on. Each channel is tried separately, so one failing does not stop the others.
+3. **Rings the phone** for any photo or other text: the message text, or "New slot photo posted" for a bare screenshot, goes to a private channel on [ntfy.sh](https://ntfy.sh), a free push service, and the Visa Alarm app goes off at once.
+4. **Reads** the screenshot, if there is one, and sends what it found as a second message titled "Slot details" (see "Reading screenshots" below).
 
-## What you get
+The channel name (`NTFY_TOPIC`) is long and random, so it works as a password; keep it private.
 
-| Channel | What you get |
-|---|---|
-| **Android phone app** (Visa Alarm) | Full-screen red alarm at alarm volume, rings even on silent or vibrate, until you tap Dismiss or Open Telegram |
-| **Telegram bot** | The group's message as text only, never the screenshot. Set a loud sound for the bot's chat on your phone |
-| **WhatsApp** | The message inside an approved template: "Update on your appointment alert: ... Complete." (Meta does not allow the message alone) |
-| **Telegram** copy to Saved Messages and a DM from your own account | Off by default: Telegram never notifies you about your own messages, so the bot replaced this |
+Besides alerts, the app can show two other kinds of notice:
 
-The phone app listens to a private channel on [ntfy.sh](https://ntfy.sh), a free push service. The watcher posts each alert to that channel (`NTFY_TOPIC`), and the phone app goes off at once. The channel name is long and random, so it works as a password; keep it private.
-
-healthchecks.io also posts to the same `NTFY_TOPIC` through a Webhook integration, so the phone app rings when the watcher stops, not only when a slot opens.
-
-Besides alerts, you may get two other kinds of notice:
-
-- **"H1B watcher stopped: ..."** from the watcher itself, in the Telegram bot chat and on the alarms, when something breaks (Telegram login expired, a crash). It says what happened and how to fix it, at most once every 6 hours per problem.
-- **"Watcher stopped"** on the alarms from healthchecks.io, when the watcher stops sending its "still alive" signal (every 5 minutes), and a quiet "Watcher back" when it recovers. To set that up, in healthchecks.io open Integrations, add a Webhook, and assign it to your check. For "down" events use method POST, URL `https://ntfy.sh/<NTFY_TOPIC>`, body `Visa slot watcher stopped. No slot alerts until it is fixed.`, and headers `Title: Watcher stopped`, `Priority: urgent`, `Tags: warning`. For "up" events use POST, the same URL, body `Visa slot watcher is running again.`, and headers `Title: Watcher back`, `Priority: low`.
+- **"H1B watcher stopped: ..."** from the watcher itself, when something breaks (Telegram login expired, a crash). It says what happened and how to fix it, at most once every 6 hours per problem.
+- **"Watcher stopped"** from healthchecks.io, when the watcher stops sending its "still alive" signal (every 5 minutes while connected to Telegram), and a quiet "Watcher back" when it recovers. To set that up, in healthchecks.io open Integrations, add a Webhook, and assign it to your check. For "down" events use method POST, URL `https://ntfy.sh/<NTFY_TOPIC>`, body `Visa slot watcher stopped. No slot alerts until it is fixed.`, and headers `Title: Watcher stopped`, `Priority: urgent`, `Tags: warning`. For "up" events use POST, the same URL, body `Visa slot watcher is running again.`, and headers `Title: Watcher back`, `Priority: low`.
 
 ## Where it runs
 
 On a **free Oracle Cloud server** (Always Free plan, San Jose region). The account was never upgraded, so it cannot be charged. The server address is in `telegram-watcher/cloud/server_ip.txt`, and the watcher runs there as a service called `h1b-watcher` that restarts by itself if it crashes.
 
-Oracle sometimes stops free servers it thinks are idle. If the alarms say "Watcher stopped" and it does not come back, log in to the Oracle Cloud console and start the instance again.
+Oracle sometimes stops free servers it thinks are idle. If the alarm says "Watcher stopped" and it does not come back, log in to the Oracle Cloud console and start the instance again.
 
 ## What you need
 
@@ -74,6 +61,7 @@ The private files also live on the server in `/opt/h1b-watcher/`. If every copy 
    ```
    telegram-watcher/cloud/deploy.sh $(cat telegram-watcher/cloud/server_ip.txt)
    ```
+   This copies your local `.env` over the server's, so edit settings in `~/.config/h1b-watcher/.env` and run `./setup.sh` first.
 
 ## Settings
 
@@ -83,30 +71,20 @@ All settings live in `.env` (template: `telegram-watcher/.env.example`).
 |---|---|---|
 | `API_ID`, `API_HASH` | Lets the watcher log in to Telegram | my.telegram.org, then "API development tools" |
 | `SOURCE_GROUP` | The group to watch | Already set to `Regular_H1B_H4_VisaSlotsChecking` |
-| `TELEGRAM_COPIES_ENABLED`, `TELEGRAM_RECIPIENT` | Telegram copies on or off, and the username (no @) that gets a DM | Your Telegram username |
-| `WA_ENABLED` and the other `WA_` settings | WhatsApp alerts via Meta's WhatsApp Cloud API | Meta for Developers, your WhatsApp app; templates in WhatsApp Manager |
-| `TG_BOT_TOKEN`, `TG_BOT_CHAT_ID` | The Telegram bot that sends you each alert. `BOT_ENABLED=false` turns it off | See "Telegram bot" below |
 | `NTFY_TOPIC` | Private channel for the phone app | Make one up: `echo visa-alert-$(openssl rand -hex 8)` |
 | `HEALTHCHECK_URL` | The "still alive" link | healthchecks.io, your check's ping URL |
-| `OCR_ENABLED` | Read screenshots for a summary line | `true` (default) or `false` |
-| `HEARTBEAT_DAYS` | Optional "still running" note every N days | `0` turns it off (healthchecks.io does this job instead) |
+| `OCR_ENABLED` | Read screenshots for a "Slot details" line | `true` (default) or `false` |
 
 ## Reading screenshots
 
 Most alerts in the group are screenshots with no caption. The watcher reads each screenshot with [tesseract](https://github.com/tesseract-ocr/tesseract), a free text-recognition program that runs on the server itself (no paid service, no account), and picks out the location (Hyderabad, Chennai, Mumbai, New Delhi, Kolkata and common US consulates abroad), the visa type (H1B or H4, regular or dropbox) and the dates. It builds one line from what it found, for example `Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026`. It only reports what is written in the image and never guesses a date.
 
-How the summary is used:
-
-- **Phone alarm**: the first alarm goes off at once, exactly as before, without waiting. A second message titled "Slot details" with the summary follows a moment later. The phone app rings for every message on the channel, so you may need to dismiss twice.
-- **Telegram bot, WhatsApp**: text only, no screenshot. The summary is the first line, followed by the group's full original message when it had one, never shortened (WhatsApp itself cuts at 1000 characters).
-- **Text messages without an image** are sent as they are.
-
-If tesseract is not installed, cannot read the image, takes longer than 15 seconds, or finds no location or date, the alert still goes out exactly as it would without this feature. Set `OCR_ENABLED=false` to turn it off.
+The first alarm never waits for this. The "Slot details" message follows a moment later, and the app rings for it too, so you may need to dismiss twice. If tesseract is not installed, cannot read the image, takes longer than 15 seconds, or finds no location or date, only the first alarm goes out. Set `OCR_ENABLED=false` to turn it off.
 
 Install tesseract once on each computer that runs the watcher:
 
 - **Mac**: `brew install tesseract`
-- **Oracle Linux 9 server**: `sudo dnf install -y oracle-epel-release-el9 && sudo dnf install -y tesseract tesseract-langpack-eng` (package names not yet confirmed on the server; `tesseract-langpack-eng` may already come with `tesseract`). dnf needs the extra swap that `setup_server.sh` adds on the 1 GB server, so run it after the first deploy, then restart the watcher.
+- **Oracle Linux 9 server**: `sudo dnf install -y oracle-epel-release-el9 && sudo dnf install -y tesseract tesseract-langpack-eng`. dnf needs the extra swap that `setup_server.sh` adds on the 1 GB server, so run it after the first deploy, then restart the watcher.
 - **Ubuntu**: `sudo apt-get install -y tesseract-ocr`
 
 ## Android phone app (Visa Alarm)
@@ -134,15 +112,6 @@ Install it, either way:
 
 Then open Visa Alarm and tap **START**.
 
-## Telegram bot
-
-Messages the watcher sends from your own account never notify you, so alerts come from a bot instead.
-
-1. In Telegram, message **@BotFather**, send `/newbot` and pick any name. It replies with a token: put it in `TG_BOT_TOKEN`.
-2. Open your new bot's chat and tap **Start** (a bot cannot message you until you do).
-3. Find your chat id: open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `message.chat.id` into `TG_BOT_CHAT_ID`.
-4. Deploy. On your phone, open the bot's chat, tap its name, Notifications, Customize, and pick a loud sound. Telegram does not sound for a chat that is open on screen, and stays quiet when the phone is on vibrate; the Android app covers those cases.
-
 ## Everyday commands
 
 Run from the repo folder. First set the server address:
@@ -156,30 +125,18 @@ IP=$(cat telegram-watcher/cloud/server_ip.txt)
 | See if it is running | `ssh -i ~/.ssh/oracle_h1b opc@$IP systemctl is-active h1b-watcher` |
 | See the last 50 log lines | `ssh -i ~/.ssh/oracle_h1b opc@$IP sudo journalctl -u h1b-watcher -n 50` |
 | Restart it | `ssh -i ~/.ssh/oracle_h1b opc@$IP sudo systemctl restart h1b-watcher` |
-| Test every alert channel (sends a real TEST message; the Telegram login is never used) | `ssh -i ~/.ssh/oracle_h1b opc@$IP 'sudo -u watcher /opt/h1b-watcher/venv/bin/python /opt/h1b-watcher/h1b_slot_watcher.py --test-alert'` |
+| Ring the phone with a TEST alert (the Telegram login is never used) | `ssh -i ~/.ssh/oracle_h1b opc@$IP 'sudo -u watcher /opt/h1b-watcher/venv/bin/python /opt/h1b-watcher/h1b_slot_watcher.py --test-alert'` |
 
-The service runs as user `watcher` from /opt/h1b-watcher, with .env next to the script, so the test command must run as that user. Add `--channels ntfy,bot,whatsapp` (any subset) to limit it, or a message after `--test-alert` to change the text.
+The service runs as user `watcher` from /opt/h1b-watcher, with .env next to the script, so the test command must run as that user. Add a message after `--test-alert` to change the text.
 
-## What the log looks like
-
-```
-2026-10-08 22:28:21,007 INFO Watching group, Telegram notifications stay as normal...
-2026-10-08 07:28:16,221 INFO Alert sent: [image, no caption]
-2026-10-08 20:35:50,502 WARNING WhatsApp send with template h1b_slot_update failed: 404 ...
-```
-
-"Watching group" means it connected. "Alert sent" means a slot alert went out. The WhatsApp warning is expected until Meta approves the template.
+"Watching group" in the log means it connected. "Alert sent" means a slot alert went out.
 
 ## Safety
 
 - **Read-only in the group.** It never posts, reacts or messages anyone in the group.
 - **No secrets in the repo.** `.env` and `session.session` are excluded by `.gitignore`.
-- **One copy at a time.** Two copies using the same Telegram login can get the login cancelled. Do not run the watcher on your Mac while the server copy is running.
+- **One copy at a time.** Two copies using the same Telegram login can get the login cancelled. Do not run the watcher on your Mac while the server copy is running, except briefly to log in again.
 - **Cannot cost money.** The Oracle account is on the free plan and was never upgraded.
-
-## Known issues
-
-- **WhatsApp wording**: a business number can only start a chat with wording Meta approved in advance, and Meta does not allow the message alone: the variable cannot be at the start or end, there must be enough fixed text around it, and for US numbers the category must be Utility (Meta does not deliver Marketing messages to +1 numbers). `h1b_slot_update_complete` is the preferred wording; Meta rejects shorter ones ("Update: {{1}}. Complete." has too few fixed words, and wording without "appointment" is classed as Marketing). A template still in review is skipped and the next one in `WA_TEMPLATE` is used; the watcher tells you in the Telegram bot chat and on WhatsApp once the first one is approved.
 
 ## Moving to a new server
 
@@ -191,11 +148,11 @@ If Oracle deletes the server, `telegram-watcher/cloud/auto_setup.sh` requests a 
 h1b-appointment-watcher/
   README.md               this file
   setup.sh                one-time setup after downloading
+  docs/system-design.html end-to-end design of the whole system
   telegram-watcher/       the watcher (Python)
     h1b_slot_watcher.py   the program
     slot_image.py         reads screenshots (tesseract) and builds the summary line
-    test_filter.py        tests for the alert rules
-    test_slot_image.py    tests for screenshot reading and what each channel gets
+    test_*.py             tests for the alert rules, screenshot reading and problem reports
     requirements.txt      Python packages it needs
     .env.example          blank template of the settings file
     cloud/                scripts that create the Oracle server and copy the watcher to it

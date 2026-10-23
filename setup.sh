@@ -24,7 +24,7 @@ fi
 
 python3 -m venv h1b_watcher_venv
 h1b_watcher_venv/bin/python -m pip install -q -r requirements.txt
-h1b_watcher_venv/bin/python -m unittest -q test_filter test_slot_image
+h1b_watcher_venv/bin/python -m unittest -q
 
 echo
 echo "Ready. To update the server:  telegram-watcher/cloud/deploy.sh \$(cat telegram-watcher/cloud/server_ip.txt)"

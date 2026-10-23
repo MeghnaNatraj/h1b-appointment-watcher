@@ -78,22 +78,6 @@ class SummarizeTest(unittest.TestCase):
         self.assertLessEqual(len(summary), 120)
 
 
-class ComposeAlertTest(unittest.TestCase):
-    def test_summary_and_full_text(self):
-        text = "Hyd slots open " + "x" * 2000
-        self.assertEqual(s.compose_alert(text, "Hyderabad, 1 date: Nov 4 2026"),
-                         "Hyderabad, 1 date: Nov 4 2026\n" + text)
-
-    def test_text_only(self):
-        self.assertEqual(s.compose_alert("Chennai 14 Nov", None), "Chennai 14 Nov")
-
-    def test_summary_only(self):
-        self.assertEqual(s.compose_alert("", "Hyderabad"), "Hyderabad")
-
-    def test_neither(self):
-        self.assertEqual(s.compose_alert("", None), "")
-
-
 class ReadSlotImageFallbackTest(unittest.TestCase):
     def test_no_tesseract(self):
         with mock.patch.object(s.shutil, "which", return_value=None):
@@ -146,66 +130,53 @@ class FakePerms:
 
 
 class FakeClient:
-    def __init__(self, calls):
-        self.calls = calls
-
     async def get_permissions(self, chat, sender):
         return FakePerms()
 
-    async def send_file(self, target, f, caption=None):
-        self.calls.append(("copy", caption))
-
-    async def send_message(self, target, text):
-        self.calls.append(("copy", text))
-
 
 class HandlerTest(unittest.TestCase):
-    """Run the real handler with every channel stubbed, no network."""
+    """Run the real handler with ntfy and OCR stubbed, no network."""
 
-    def run_handler(self, text, image, summary):
+    def run_handler(self, text, image, summary, admin=False):
         calls = []
-        env = {"TELEGRAM_RECIPIENT": "someone", "NTFY_TOPIC": "t", "TG_BOT_TOKEN": "x", "TG_BOT_CHAT_ID": "1",
-               "WA_ENABLED": "true", "TELEGRAM_COPIES_ENABLED": "false"}
-        with mock.patch.dict(os.environ, env), \
+        client = FakeClient()
+        if admin:
+            FakePermsAdmin = type("P", (), {"is_admin": True, "is_creator": False})
+            client.get_permissions = lambda chat, sender: asyncio.sleep(0, FakePermsAdmin())
+        with mock.patch.dict(os.environ, {"NTFY_TOPIC": "t"}), \
                 mock.patch.object(w, "send_ntfy", lambda t, title="VISA SLOT", priority="urgent":
                                   calls.append(("ntfy", title, t))), \
                 mock.patch.object(w.slot_image, "read_slot_image",
-                                  lambda b: calls.append(("ocr",)) or summary), \
-                mock.patch.object(w, "send_telegram_bot", lambda t: calls.append(("bot", t))), \
-                mock.patch.object(w, "send_whatsapp", lambda t, report=True: calls.append(("wa", t))):
-            asyncio.run(w.make_handler(FakeClient(calls))(FakeEvent(text, image)))
+                                  lambda b: calls.append(("ocr",)) or summary):
+            asyncio.run(w.make_handler(client)(FakeEvent(text, image)))
         return calls
 
     def test_photo_with_summary(self):
-        calls = self.run_handler("", True, "Hyderabad, 1 date: Nov 4 2026")
-        self.assertEqual(calls, [
+        self.assertEqual(self.run_handler("", True, "Hyderabad, 1 date: Nov 4 2026"), [
             ("ntfy", "VISA SLOT", "New slot photo posted"),
             ("ocr",),
             ("ntfy", "Slot details", "Hyderabad, 1 date: Nov 4 2026"),
-            ("bot", "Hyderabad, 1 date: Nov 4 2026"),
-            ("wa", "Hyderabad, 1 date: Nov 4 2026"),
         ])
 
-    def test_photo_with_caption_and_summary_keeps_full_caption(self):
+    def test_photo_with_caption_sends_full_caption_first(self):
         caption = "Hyd open now, book fast " + "y" * 1500
         calls = self.run_handler(caption, True, "Hyderabad")
         self.assertEqual(calls[0], ("ntfy", "VISA SLOT", caption))
-        self.assertIn(("bot", "Hyderabad\n" + caption), calls)
-        self.assertIn(("wa", "Hyderabad\n" + caption), calls)
+        self.assertEqual(calls[-1], ("ntfy", "Slot details", "Hyderabad"))
 
-    def test_photo_unreadable_falls_back(self):
-        calls = self.run_handler("", True, None)
-        self.assertEqual(calls, [
+    def test_photo_unreadable_sends_one_alarm(self):
+        self.assertEqual(self.run_handler("", True, None), [
             ("ntfy", "VISA SLOT", "New slot photo posted"),
             ("ocr",),
-            ("bot", "New slot photo posted"),
-            ("wa", "New slot photo posted"),
         ])
 
     def test_text_only_skips_ocr(self):
-        calls = self.run_handler("Chennai 14 Nov", False, "unused")
-        self.assertNotIn(("ocr",), calls)
-        self.assertEqual(calls[0], ("ntfy", "VISA SLOT", "Chennai 14 Nov"))
+        self.assertEqual(self.run_handler("Chennai 14 Nov", False, "unused"),
+                         [("ntfy", "VISA SLOT", "Chennai 14 Nov")])
+
+    def test_na_and_admin_posts_skipped(self):
+        self.assertEqual(self.run_handler("Hyderabad NA", True, "unused"), [])
+        self.assertEqual(self.run_handler("Chennai 14 Nov", False, "unused", admin=True), [])
 
 
 @unittest.skipUnless(s.shutil.which("tesseract"), "tesseract not installed")

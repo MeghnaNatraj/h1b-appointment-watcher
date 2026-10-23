@@ -267,8 +267,3 @@ def read_slot_image(image_bytes):
     except Exception as e:
         log.error("Could not read the screenshot: %s", e)
         return None
-
-
-def compose_alert(text, summary):
-    """The alert body: the parsed summary (if any) on top, then the full original message."""
-    return "\n".join(p for p in (summary, text) if p)

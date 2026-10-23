@@ -22,8 +22,6 @@ if "$D/deploy.sh" "$IP"; then
   rm -f "$HOME/Library/LaunchAgents/$LABEL.plist"
   launchctl bootout "gui/$(id -u)/$LABEL"
 else
-  echo "$(date '+%F %T') deploy failed, re-enabling the Mac watcher"
-  launchctl enable "gui/$(id -u)/com.meghna.h1bslotwatcher"
-  launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.meghna.h1bslotwatcher.plist" 2>/dev/null || true
+  echo "$(date '+%F %T') deploy failed, will retry on next run"
   exit 1
 fi

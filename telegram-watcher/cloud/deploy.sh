@@ -17,23 +17,16 @@ if ! "${SSH[@]}" "sudo test -f $APP/session.session"; then
   FILES+=("$HERE/session.session")
 fi
 
-# The server's .env is the local one. "It stopped" alerts come from the
-# HEALTHCHECK_URL monitor, so no periodic "still running" message is sent.
+# The server's .env is the local one, plus the server address so the fix
+# commands in problem reports are copy-pasteable.
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
-grep -v '^HEARTBEAT_DAYS=' "$HERE/.env" > "$TMP/.env"
-echo "HEARTBEAT_DAYS=0" >> "$TMP/.env"
-# Used in problem reports so the fix commands are copy-pasteable.
-grep -v -e '^SERVER_SSH=' -e '^SERVER_IP=' "$TMP/.env" > "$TMP/.env.new" && mv "$TMP/.env.new" "$TMP/.env"
+grep -v -e '^SERVER_SSH=' -e '^SERVER_IP=' "$HERE/.env" > "$TMP/.env"
 echo "SERVER_IP=$IP" >> "$TMP/.env"
 echo "SERVER_SSH=ssh -i ~/.ssh/oracle_h1b $USER_AT" >> "$TMP/.env"
 chmod 600 "$TMP/.env"
 
 "${SSH[@]}" "rm -rf /tmp/h1b && mkdir -m 700 /tmp/h1b"
-# Only one copy may use the Telegram session at a time, so stop the Mac's job
-# before copying the session file (it is written while the watcher runs).
-launchctl bootout "gui/$(id -u)/com.meghna.h1bslotwatcher" 2>/dev/null || true
-launchctl disable "gui/$(id -u)/com.meghna.h1bslotwatcher"
 scp -i "$KEY" "${FILES[@]}" "$TMP/.env" "$USER_AT:/tmp/h1b/"
 
 "${SSH[@]}" "sudo mkdir -p $APP && sudo cp -a /tmp/h1b/. $APP/ && rm -rf /tmp/h1b && sudo bash $APP/setup_server.sh"

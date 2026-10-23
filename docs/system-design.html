@@ -1,0 +1,261 @@
+<title>H1B Slot Watcher System</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one reading column, diagrams and tables allowed to scroll sideways inside their own boxes. */
+:root {
+  --bg: #fbf9f9;
+  --surface: #ffffff;
+  --fg: #1f1a1b;
+  --muted: #6b6264;
+  --line: #e6dfe0;
+  --alarm: #b71c1c;
+  --alarm-soft: #fbe9e9;
+  --on: #1d6b3a;
+  --on-soft: #e4f3e9;
+  --off: #6b6264;
+  --off-soft: #efebec;
+  --code-bg: #f3efef;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #151213; --surface: #1d191a; --fg: #efe9ea; --muted: #a59b9d; --line: #352e30;
+    --alarm: #ff6b6b; --alarm-soft: #3a1c1d; --on: #6fd394; --on-soft: #17301f;
+    --off: #a59b9d; --off-soft: #2a2425; --code-bg: #262022; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #151213; --surface: #1d191a; --fg: #efe9ea; --muted: #a59b9d; --line: #352e30;
+  --alarm: #ff6b6b; --alarm-soft: #3a1c1d; --on: #6fd394; --on-soft: #17301f;
+  --off: #a59b9d; --off-soft: #2a2425; --code-bg: #262022; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 16px; line-height: 1.6; }
+.wrap { max-width: 920px; margin: 0 auto; padding-block: 40px 72px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 48px; }
+header { display: grid; gap: 14px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--alarm); }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; line-height: 1.15; }
+h1 { font-size: clamp(32px, 6vw, 46px); font-weight: 700; }
+h2 { font-size: 26px; font-weight: 600; }
+h3 { font-size: 18px; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+.lede { font-size: 18px; color: var(--muted); }
+section { display: grid; gap: 16px; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { font-family: var(--mono); font-size: 12.5px; padding: 4px 10px; border-radius: 999px; display: inline-flex; gap: 6px; align-items: center; }
+.chip::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.chip.on { background: var(--on-soft); color: var(--on); }
+.chip.off { background: var(--off-soft); color: var(--off); }
+.chip.off::before { background: transparent; border: 1.5px solid currentColor; width: 5px; height: 5px; }
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 20px; overflow-x: auto; }
+.diagram pre.mermaid { margin: 0; background: transparent; }
+.note { font-size: 14px; color: var(--muted); }
+.table-box { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+th { font-family: var(--mono); font-size: 11.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--bg); }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; white-space: nowrap; }
+.steps { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li { counter-increment: step; display: grid; grid-template-columns: 36px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.steps li:last-child { border-bottom: none; }
+.steps li::before { content: counter(step); font-family: var(--mono); font-size: 13px; color: var(--alarm); border: 1.5px solid var(--alarm); border-radius: 50%; width: 26px; height: 26px; display: grid; place-items: center; }
+.steps li > div { min-width: 0; }
+.steps .t { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.card ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 14.5px; }
+.card .where { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+.callout { border-left: 3px solid var(--alarm); background: var(--alarm-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; font-size: 15px; }
+a { color: var(--alarm); }
+:focus-visible { outline: 2px solid var(--alarm); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">System design · as of Oct 23, 2026</div>
+    <h1>H1B Slot Watcher</h1>
+    <p class="lede">A cloud watcher reads the Regular_H1B_H4_VisaSlotsChecking Telegram group around the clock, filters out noise, and rings the Visa Alarm app on your Android phone within seconds of a real slot post.</p>
+    <div class="chips" aria-label="Alert channels right now">
+      <span class="chip on">Visa Alarm app (ntfy)</span>
+      <span class="chip on">healthchecks.io monitor</span>
+    </div>
+  </header>
+
+  <section>
+    <h2>Architecture</h2>
+    <p>Three running parts: the watcher on a free Oracle Cloud server, the ntfy.sh push channel in the middle, and the Visa Alarm app on the phone. healthchecks.io sits beside them and rings the same channel if the watcher goes quiet.</p>
+    <div class="diagram">
+<pre class="mermaid">
+flowchart LR
+  G["Telegram group<br/>Regular_H1B_H4_VisaSlotsChecking"]
+  subgraph VM["Oracle Cloud VM · Always Free · 1 GB RAM"]
+    direction TB
+    W["h1b_slot_watcher.py<br/>Telethon client, logged in as you<br/>systemd service h1b-watcher"]
+    F["Filter<br/>skip notice, NA, admin posts"]
+    O["slot_image.py<br/>tesseract OCR, 15 s limit"]
+    W --> F --> O
+  end
+  N[("ntfy.sh<br/>private topic")]
+  P["Visa Alarm app<br/>Android foreground service"]
+  H["healthchecks.io<br/>ping every 5 min"]
+  G -- "new message (read only)" --> W
+  F -- "1. alert text, at once" --> N
+  O -- "2. Slot details summary" --> N
+  N -- "HTTP stream /json" --> P
+  W -. "still alive ping" .-> H
+  H -. "webhook when pings stop" .-> N
+</pre>
+    </div>
+    <p class="note">The Visa Alarm app is the only alert channel. The Telegram bot, WhatsApp, Telegram copies and the Mac alarm were removed on Oct 23, 2026.</p>
+  </section>
+
+  <section>
+    <h2>Life of one alert</h2>
+    <p>The phone rings before the screenshot is even downloaded. Reading the image happens afterwards and arrives as a second, quieter message.</p>
+    <ol class="steps">
+      <li><div><h3>Someone posts in the group</h3><p>Telethon delivers the new message to the watcher's handler. With <code>catch_up=True</code>, messages posted while it was disconnected are delivered after it reconnects, late rather than never.</p></div></li>
+      <li><div><h3>Filter</h3><p>Skips the group's repeating "H1 H4 inperson slots availa..." notice, any text with "NA" or "N/A" as a whole word (CHENNAI still passes), and posts by group admins or the group itself. Any remaining photo or text is an alert.</p></div></li>
+      <li><div><h3>First push to ntfy</h3><p>The message text, or "New slot photo posted" for a bare screenshot, goes to <code>https://ntfy.sh/&lt;NTFY_TOPIC&gt;</code> with title VISA SLOT and priority urgent.</p><p class="t">about 1 s after the post</p></div></li>
+      <li><div><h3>Phone rings</h3><p>The app's open stream receives the event, checks it has not rung for this message id, then plays the alarm sound on the alarm audio stream at full volume with vibration and a full-screen red screen. It rings even on silent or vibrate, for at most 10 minutes, until you tap Dismiss or Open Telegram.</p></div></li>
+      <li><div><h3>Read the screenshot</h3><p>The watcher downloads the image and runs tesseract on it. It picks out location, visa type and dates, for example <code>Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026</code>. It never guesses: no match means no summary.</p><p class="t">a few seconds, capped at 15 s</p></div></li>
+      <li><div><h3>Second push: Slot details</h3><p>If a summary was found, it goes to the same topic with title "Slot details" and priority high. The app shows it on the alarm screen, so a second dismiss may be needed.</p></div></li>
+      <li><div><h3>Log</h3><p><code>Alert sent: ...</code> is written to the systemd journal on the server.</p></div></li>
+    </ol>
+  </section>
+
+  <section>
+    <h2>Components</h2>
+    <div class="grid2">
+      <div class="card">
+        <h3>Watcher</h3>
+        <div class="where">telegram-watcher/h1b_slot_watcher.py</div>
+        <ul>
+          <li>Python 3.12, Telethon, runs as Linux user <code>watcher</code> from <code>/opt/h1b-watcher</code></li>
+          <li>systemd restarts it 30 s after any crash, and on reboot</li>
+          <li>One background task: the healthcheck pinger, every 5 min while connected</li>
+          <li><code>--test-alert</code> rings the phone with a TEST message without touching the Telegram login</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Screenshot reader</h3>
+        <div class="where">telegram-watcher/slot_image.py</div>
+        <ul>
+          <li>Local tesseract, no paid service and no account</li>
+          <li>Knows Hyderabad, Chennai, Mumbai, New Delhi, Kolkata and common consulates abroad</li>
+          <li>Visa type: H1B or H4, regular or dropbox</li>
+          <li>Off with <code>OCR_ENABLED=false</code>; any failure falls back to the plain alert</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>ntfy.sh topic</h3>
+        <div class="where">NTFY_TOPIC in .env, baked into the APK</div>
+        <ul>
+          <li>Free public push service; the long random topic name works as the password</li>
+          <li>Keeps recent messages, so the app can ask for anything since its last event</li>
+          <li>Also receives watcher problem reports and healthchecks.io "Watcher stopped" posts</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Visa Alarm app</h3>
+        <div class="where">android-app/ · package com.meghna.visaalarm</div>
+        <ul>
+          <li><code>ListenerService</code>: foreground service holding one HTTP stream to the topic, with a partial wake lock</li>
+          <li>Reconnects with backoff from 2 s to 60 s and asks for <code>?since=</code> the last event time</li>
+          <li><code>Alarm</code> and <code>AlarmActivity</code>: alarm-stream sound, vibration, full-screen intent over the lock screen</li>
+          <li><code>BootReceiver</code> restarts listening after a phone reboot</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>healthchecks.io</h3>
+        <div class="where">HEALTHCHECK_URL in .env</div>
+        <ul>
+          <li>Dead man's switch: the watcher pings every 5 min while Telegram is connected</li>
+          <li>Missed pings trigger a webhook to the ntfy topic: "Watcher stopped", urgent</li>
+          <li>Recovery posts a quiet "Watcher back"</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3>Server and deploy scripts</h3>
+        <div class="where">telegram-watcher/cloud/</div>
+        <ul>
+          <li><code>deploy.sh</code> copies code, requirements and .env, then runs <code>setup_server.sh</code></li>
+          <li><code>setup_server.sh</code> adds 2 GB swap, builds the venv with uv, writes the systemd unit</li>
+          <li><code>auto_setup.sh</code> requests a new free VM, retrying every 3 min when Oracle is out of capacity</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Failure handling</h2>
+    <p>Each failure has one path that still reaches the phone.</p>
+    <div class="table-box">
+      <table>
+        <thead><tr><th>Failure</th><th>What catches it</th><th>What you see</th></tr></thead>
+        <tbody>
+          <tr><td>Watcher crashes</td><td>systemd <code>Restart=always</code>, 30 s delay</td><td>Nothing if it recovers; missed posts arrive via catch-up</td></tr>
+          <tr><td>Telegram link down</td><td>Pings pause while disconnected, so healthchecks.io notices</td><td>"Watcher stopped" alarm from the healthchecks.io webhook</td></tr>
+          <tr><td>Telegram login expired</td><td>Startup check</td><td>Alarm with the steps to log in again and redeploy the session</td></tr>
+          <tr><td>VM stopped or deleted</td><td>healthchecks.io stops getting pings</td><td>"Watcher stopped" alarm from the healthchecks.io webhook</td></tr>
+          <tr><td>ntfy unreachable for a report</td><td>Watcher posts to <code>HEALTHCHECK_URL/fail</code></td><td>healthchecks.io raises its own down alert</td></tr>
+          <tr><td>Phone loses connection</td><td>Read timeout of 2 min (ntfy keepalive is 45 s)</td><td>Reconnects and fetches anything missed with <code>since=</code></td></tr>
+          <tr><td>Same message delivered twice</td><td>App stores the last ntfy message id</td><td>Rings only once</td></tr>
+          <tr><td>Screenshot unreadable</td><td>OCR returns nothing or times out</td><td>Alarm still rings; no "Slot details" follow-up</td></tr>
+          <tr><td>Repeated problem</td><td><code>.problem-&lt;key&gt;</code> marker files</td><td>At most one report per problem every 6 hours</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Settings and secrets</h2>
+    <div class="callout">Nothing secret is in the GitHub repo. <code>.env</code> and <code>session.session</code> are git-ignored and live only in <code>/opt/h1b-watcher/</code> on the server (mode 600, owner <code>watcher</code>) and as a backup in <code>~/.config/h1b-watcher/</code> on your Mac.</div>
+    <div class="table-box">
+      <table>
+        <thead><tr><th>Setting</th><th>Purpose</th><th>Now on server</th></tr></thead>
+        <tbody>
+          <tr><td><code>API_ID</code>, <code>API_HASH</code></td><td>Telegram app credentials for the user login</td><td>set</td></tr>
+          <tr><td><code>session.session</code></td><td>Saved Telegram login; treat like a password</td><td>present</td></tr>
+          <tr><td><code>NTFY_TOPIC</code></td><td>Private channel the app listens on</td><td><span class="chip on">set</span></td></tr>
+          <tr><td><code>HEALTHCHECK_URL</code></td><td>Dead man's switch ping URL</td><td><span class="chip on">set</span></td></tr>
+          <tr><td><code>OCR_ENABLED</code></td><td>Screenshot summary line</td><td><span class="chip on">default true</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Design choices</h2>
+    <div class="grid2">
+      <div class="card"><h3>Alarm first, details later</h3><p>OCR can take seconds, so the first push never waits for it. Speed matters more than a tidy single message because slots go within minutes.</p></div>
+      <div class="card"><h3>A custom app instead of a chat app</h3><p>Telegram and WhatsApp stay quiet on vibrate and when the chat is open. The app plays on the alarm stream, which Android lets ring through silent mode.</p></div>
+      <div class="card"><h3>One login, one copy</h3><p>Two clients on the same Telegram session can get it cancelled, so only the server runs. <code>deploy.sh</code> disables any Mac copy before moving the session.</p></div>
+      <div class="card"><h3>Read only, zero cost</h3><p>The watcher never posts in the group. Oracle Always Free, ntfy.sh, healthchecks.io and tesseract all cost nothing, and the Oracle account was never upgraded, so it cannot be charged.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Code map</h2>
+    <div class="table-box">
+      <table>
+        <thead><tr><th>Path</th><th>Role</th></tr></thead>
+        <tbody>
+          <tr><td><code>telegram-watcher/h1b_slot_watcher.py</code></td><td>Watcher: filter, ntfy pushes, problem reports, healthcheck pinger</td></tr>
+          <tr><td><code>telegram-watcher/slot_image.py</code></td><td>OCR and the summary line</td></tr>
+          <tr><td><code>telegram-watcher/test_*.py</code></td><td>39 unit tests: filter rules, OCR parsing, what the phone receives, problem reports</td></tr>
+          <tr><td><code>telegram-watcher/cloud/</code></td><td>Create the VM, set it up, deploy</td></tr>
+          <tr><td><code>android-app/</code></td><td>Visa Alarm app (Java, no libraries)</td></tr>
+          <tr><td><code>setup.sh</code></td><td>One-time local setup from <code>~/.config/h1b-watcher/</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="note">Repo: <a href="https://github.com/MeghnaNatraj/h1b-appointment-watcher" target="_blank" rel="noopener">MeghnaNatraj/h1b-appointment-watcher</a> (private).</p>
+  </section>
+</div>
