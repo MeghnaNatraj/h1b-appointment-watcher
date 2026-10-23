@@ -211,7 +211,7 @@ def send_telegram_bot(text, image_bytes):
 
 
 def send_ntfy(text, title="VISA SLOT", priority="urgent"):
-    """Push the alert to the ntfy topic the phone app and laptop alarm listen on."""
+    """Push the alert to the ntfy topic the phone app listens on."""
     resp = requests.post(f"https://ntfy.sh/{os.environ['NTFY_TOPIC']}", data=text.encode("utf-8"), timeout=15,
                          headers={"Title": title, "Priority": priority, "Tags": "rotating_light"})
     resp.raise_for_status()
@@ -319,7 +319,7 @@ def make_handler(client):
             except Exception as e:
                 log.error("%s send failed: %s", name, e)
 
-        # Ring the phone app and laptop alarm first: they are the loud ones.
+        # Ring the phone app first: it is the loud one.
         # Reading the screenshot can take seconds, so it never delays this.
         first = text or "New slot photo posted"
         await run_channel(*channels[0], first, first, None)

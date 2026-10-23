@@ -7,7 +7,6 @@ Watches a Telegram group where people report open US visa (H1B/H4) interview slo
 - Watches the group 24 hours a day on a free cloud server, so your laptop can be off
 - Ignores noise: the group's repeating notice and "NA" (no slots) messages
 - Rings a full-screen alarm on your Android phone, even on silent or vibrate
-- Sounds a loud alarm with a pop-up on your Mac
 - Sends each real alert from a Telegram bot (just the message) and by WhatsApp. No email
 - Reads the posted screenshot and adds a one-line summary, like "Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026"
 - Catches up on messages it missed after a restart, so alerts arrive late rather than never
@@ -32,14 +31,13 @@ For every new message it:
 | Channel | What you get |
 |---|---|
 | **Android phone app** (Visa Alarm) | Full-screen red alarm at alarm volume, rings even on silent or vibrate, until you tap Dismiss or Open Telegram |
-| **Mac alarm** | One alarm sound and one spoken "Visa slot available" at full volume, plus a pop-up that stays until you dismiss it. Further alerts in the next 5 minutes stay silent |
 | **Telegram bot** | Just the group's message (photo with caption, or text). Set a loud sound for the bot's chat on your phone |
 | **WhatsApp** | The message inside an approved template: "Update on your appointment alert: ... Complete." (Meta does not allow the message alone) |
 | **Telegram** copy to Saved Messages and a DM from your own account | Off by default: Telegram never notifies you about your own messages, so the bot replaced this |
 
-The phone app and the Mac alarm both listen to a private channel on [ntfy.sh](https://ntfy.sh), a free push service. The watcher posts each alert to that channel (`NTFY_TOPIC`), and every device listening to it goes off at once. The channel name is long and random, so it works as a password; keep it private.
+The phone app listens to a private channel on [ntfy.sh](https://ntfy.sh), a free push service. The watcher posts each alert to that channel (`NTFY_TOPIC`), and the phone app goes off at once. The channel name is long and random, so it works as a password; keep it private.
 
-healthchecks.io also posts to the same `NTFY_TOPIC` through a Webhook integration, so the phone app and the Mac alarm ring when the watcher stops, not only when a slot opens.
+healthchecks.io also posts to the same `NTFY_TOPIC` through a Webhook integration, so the phone app rings when the watcher stops, not only when a slot opens.
 
 Besides alerts, you may get two other kinds of notice:
 
@@ -88,7 +86,7 @@ All settings live in `.env` (template: `telegram-watcher/.env.example`).
 | `TELEGRAM_COPIES_ENABLED`, `TELEGRAM_RECIPIENT` | Telegram copies on or off, and the username (no @) that gets a DM | Your Telegram username |
 | `WA_ENABLED` and the other `WA_` settings | WhatsApp alerts via Meta's WhatsApp Cloud API | Meta for Developers, your WhatsApp app; templates in WhatsApp Manager |
 | `TG_BOT_TOKEN`, `TG_BOT_CHAT_ID` | The Telegram bot that sends you each alert | See "Telegram bot" below |
-| `NTFY_TOPIC` | Private channel for the phone app and Mac alarm | Make one up: `echo visa-alert-$(openssl rand -hex 8)` |
+| `NTFY_TOPIC` | Private channel for the phone app | Make one up: `echo visa-alert-$(openssl rand -hex 8)` |
 | `HEALTHCHECK_URL` | The "still alive" link | healthchecks.io, your check's ping URL |
 | `OCR_ENABLED` | Read screenshots for a summary line | `true` (default) or `false` |
 | `HEARTBEAT_DAYS` | Optional "still running" note every N days | `0` turns it off (healthchecks.io does this job instead) |
@@ -99,7 +97,7 @@ Most alerts in the group are screenshots with no caption. The watcher reads each
 
 How the summary is used:
 
-- **Phone and Mac alarm**: the first alarm goes off at once, exactly as before, without waiting. A second message titled "Slot details" with the summary follows a moment later. Both the phone app and the Mac alarm ring for every message on the channel, so you may need to dismiss twice.
+- **Phone alarm**: the first alarm goes off at once, exactly as before, without waiting. A second message titled "Slot details" with the summary follows a moment later. The phone app rings for every message on the channel, so you may need to dismiss twice.
 - **Telegram bot, WhatsApp**: the summary is the first line, followed by the group's full original message when it had one, never shortened (WhatsApp itself cuts at 1000 characters).
 - **Text messages without an image** are sent as they are.
 
@@ -135,14 +133,6 @@ Install it, either way:
 - **Without a cable:** email the APK to yourself, open it on the phone and allow installing from Gmail.
 
 Then open Visa Alarm and tap **START**.
-
-## Mac alarm
-
-```
-laptop-alarm/install.sh <your NTFY_TOPIC>
-```
-
-Installs a background job that starts at login. When an alert arrives it turns the volume up, plays one alarm sound, says "Visa slot available" once, puts the volume back and shows a pop-up that stays until you click Dismiss or Open Telegram. Alerts in the following 5 minutes (such as the "Slot details" follow-up) stay silent. Remove it with `laptop-alarm/install.sh --uninstall`.
 
 ## Telegram bot
 
@@ -210,7 +200,6 @@ h1b-appointment-watcher/
     .env.example          blank template of the settings file
     cloud/                scripts that create the Oracle server and copy the watcher to it
   android-app/            Visa Alarm, the one-button Android alarm app (Java)
-  laptop-alarm/           Mac alarm: listener.sh and install.sh
 ```
 
 ## Disclaimer
