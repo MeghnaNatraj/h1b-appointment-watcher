@@ -88,11 +88,6 @@ NUMERIC_DATE = re.compile(r"(?<!\d)(\d{1,2})[/.\-](\d{1,2})[/.\-](20\d{2})(?!\d)
 # "November 2026" when no day is visible
 MONTH_YEAR = re.compile(rf"(?<![a-z]){MONTH_RE}{SEP}{YEAR_RE}", re.IGNORECASE)
 
-H1B = re.compile(r"(?<![a-z0-9])h\s*-?\s*[1il|]\s*-?\s*b(?![a-z])", re.IGNORECASE)
-H4 = re.compile(r"(?<![a-z0-9])h\s*-?\s*4(?![0-9])", re.IGNORECASE)
-REGULAR = re.compile(r"\bregular\b", re.IGNORECASE)
-DROPBOX = re.compile(r"\bdrop\s*-?\s*box\b", re.IGNORECASE)
-
 
 def ocr_image(image_bytes, timeout=OCR_TIMEOUT_SECONDS):
     """Return the text tesseract reads from the image, or None if it cannot run."""
@@ -147,15 +142,6 @@ def find_locations(text):
                 break
     # "New Delhi" also contains "Delhi": one location, not two.
     return [name for name, _ in sorted(found.items(), key=lambda kv: kv[1])]
-
-
-def find_visa_type(text):
-    """Return e.g. "H1B regular", "H1B/H4 dropbox", or None."""
-    kinds = [k for k, pattern in (("H1B", H1B), ("H4", H4)) if pattern.search(text)]
-    if not kinds:
-        return None
-    category = [c for c, pattern in (("regular", REGULAR), ("dropbox", DROPBOX)) if pattern.search(text)]
-    return " ".join(["/".join(kinds)] + category)
 
 
 def _month_number(word):
@@ -228,15 +214,11 @@ def _format_dates(dates, month_only, max_shown=8):
 
 
 def summarize(ocr_text):
-    """One-line summary like "Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026", or None.
-
-    None when neither a location nor a date was found, since a visa type
-    alone tells you nothing new.
-    """
+    """One-line summary like "Hyderabad, 3 dates: Nov 4, 5, 12 2026", or None when
+    neither a location nor a date was found."""
     if not ocr_text or not ocr_text.strip():
         return None
     locations = find_locations(ocr_text)
-    visa = find_visa_type(ocr_text)
     dates, month_only = find_dates(ocr_text)
     if not locations and not dates and not month_only:
         return None
@@ -245,8 +227,6 @@ def summarize(ocr_text):
         # VAC is the biometrics appointment, not the consular interview.
         vac = " VAC" if re.search(r"(?<![a-z])vac(?![a-z])", ocr_text, re.IGNORECASE) else ""
         parts.append("/".join(locations[:3]) + vac)
-    if visa:
-        parts.append(visa)
     if dates:
         label = "1 date" if len(dates) == 1 else f"{len(dates)} dates"
         parts.append(f"{label}: {_format_dates(dates, month_only)}")

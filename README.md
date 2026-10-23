@@ -7,7 +7,7 @@ Watches a Telegram group where people report open US visa (H1B/H4) interview slo
 - Watches the group 24 hours a day on a free cloud server, so your laptop can be off
 - Ignores noise: the group's repeating notice, admin posts and "NA" (no slots) messages
 - Rings a full-screen alarm on your Android phone, even on silent or vibrate
-- Reads the posted screenshot and sends a one-line summary, like "Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026"
+- Reads the posted screenshot and sends a one-line summary, like "Hyderabad, 3 dates: Nov 4, 5, 12 2026"
 - Catches up on messages it missed after a restart, so alerts arrive late rather than never
 - Rings the alarm if something breaks, with the steps to fix it
 - A separate free service rings the alarm if the watcher stops completely
@@ -77,7 +77,7 @@ All settings live in `.env` (template: `telegram-watcher/.env.example`).
 
 ## Reading screenshots
 
-Most alerts in the group are screenshots with no caption. The watcher reads each screenshot with [tesseract](https://github.com/tesseract-ocr/tesseract), a free text-recognition program that runs on the server itself (no paid service, no account), and picks out the location (Hyderabad, Chennai, Mumbai, New Delhi, Kolkata and common US consulates abroad), the visa type (H1B or H4, regular or dropbox) and the dates. It builds one line from what it found, for example `Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026`. It only reports what is written in the image and never guesses a date.
+Most alerts in the group are screenshots with no caption. The watcher reads each screenshot with [tesseract](https://github.com/tesseract-ocr/tesseract), a free text-recognition program that runs on the server itself (no paid service, no account), and picks out the location (Hyderabad, Chennai, Mumbai, New Delhi, Kolkata and common US consulates abroad) and the dates. It builds one line from what it found, for example `Hyderabad, 3 dates: Nov 4, 5, 12 2026`. It only reports what is written in the image and never guesses a date.
 
 The first alarm never waits for this. The "Slot details" message follows a moment later, and the app rings for it too, so you may need to dismiss twice. If tesseract is not installed, cannot read the image, takes longer than 15 seconds, or finds no location or date, only the first alarm goes out. Set `OCR_ENABLED=false` to turn it off.
 

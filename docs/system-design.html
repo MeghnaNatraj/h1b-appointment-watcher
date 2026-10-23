@@ -124,7 +124,7 @@ flowchart LR
       <li><div><h3>Filter</h3><p>Skips the group's repeating "H1 H4 inperson slots availa..." notice, any text with "NA" or "N/A" as a whole word (CHENNAI still passes), and posts by group admins or the group itself. Any remaining photo or text is an alert.</p></div></li>
       <li><div><h3>First push to ntfy</h3><p>The message text, or "New slot photo posted" for a bare screenshot, goes to <code>https://ntfy.sh/&lt;NTFY_TOPIC&gt;</code> with title VISA SLOT and priority urgent.</p><p class="t">about 1 s after the post</p></div></li>
       <li><div><h3>Phone rings</h3><p>The app's open stream receives the event, checks it has not rung for this message id, then plays the alarm sound on the alarm audio stream at full volume with vibration and a full-screen red screen. It rings even on silent or vibrate, for at most 10 minutes, until you tap Dismiss or Open Telegram.</p></div></li>
-      <li><div><h3>Read the screenshot</h3><p>The watcher downloads the image and runs tesseract on it. It picks out location, visa type and dates, for example <code>Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026</code>. It never guesses: no match means no summary.</p><p class="t">a few seconds, capped at 15 s</p></div></li>
+      <li><div><h3>Read the screenshot</h3><p>The watcher downloads the image and runs tesseract on it. It picks out the location and dates, for example <code>Hyderabad, 3 dates: Nov 4, 5, 12 2026</code>. It never guesses: no match means no summary.</p><p class="t">a few seconds, capped at 15 s</p></div></li>
       <li><div><h3>Second push: Slot details</h3><p>If a summary was found, it goes to the same topic with title "Slot details" and priority high. The app shows it on the alarm screen, so a second dismiss may be needed.</p></div></li>
       <li><div><h3>Log</h3><p><code>Alert sent: ...</code> is written to the systemd journal on the server.</p></div></li>
     </ol>
@@ -149,7 +149,6 @@ flowchart LR
         <ul>
           <li>Local tesseract, no paid service and no account</li>
           <li>Knows Hyderabad, Chennai, Mumbai, New Delhi, Kolkata and common consulates abroad</li>
-          <li>Visa type: H1B or H4, regular or dropbox</li>
           <li>Off with <code>OCR_ENABLED=false</code>; any failure falls back to the plain alert</li>
         </ul>
       </div>

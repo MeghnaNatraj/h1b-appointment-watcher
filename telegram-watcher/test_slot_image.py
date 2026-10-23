@@ -16,12 +16,12 @@ import slot_image as s  # noqa: E402
 class SummarizeTest(unittest.TestCase):
     def test_clean_screenshot(self):
         self.assertEqual(s.summarize("Hyderabad H1B Regular - Available: 04 Nov 2026, 05 Nov 2026, 12 Nov 2026"),
-                         "Hyderabad, H1B regular, 3 dates: Nov 4, 5, 12 2026")
+                         "Hyderabad, 3 dates: Nov 4, 5, 12 2026")
 
     def test_noisy_ocr(self):
-        # Misread letters in the city, H-1B with a hyphen, 0 for o and O for 0.
+        # Misread letters in the city, 0 for o and O for 0.
         text = "HYDERAHAD  Consular\nH-1B  REGULAR\nN0v O4, 2026 | l2 Nov 2026"
-        self.assertEqual(s.summarize(text), "Hyderabad, H1B regular, 2 dates: Nov 4, 12 2026")
+        self.assertEqual(s.summarize(text), "Hyderabad, 2 dates: Nov 4, 12 2026")
 
     def test_date_formats(self):
         dates, months = s.find_dates("2026-11-04, Nov 5 2026, 11/06/2026, 7th November, 2026, 08-Nov-2026")
@@ -45,7 +45,7 @@ class SummarizeTest(unittest.TestCase):
 
     def test_month_only(self):
         self.assertEqual(s.summarize("Chennai H4 dropbox slots in December 2026"),
-                         "Chennai, H4 dropbox, dates in Dec 2026")
+                         "Chennai, dates in Dec 2026")
 
     def test_month_only_not_repeated_for_full_dates(self):
         self.assertEqual(s.find_dates("04 Nov 2026"), ([datetime.date(2026, 11, 4)], []))
@@ -104,7 +104,7 @@ class ReadSlotImageFallbackTest(unittest.TestCase):
         ok = subprocess.CompletedProcess([], 0, b"Mumbai H1B 04 Nov 2026", b"")
         with mock.patch.object(s.shutil, "which", return_value="/usr/bin/tesseract"), \
                 mock.patch.object(s.subprocess, "run", return_value=ok):
-            self.assertEqual(s.read_slot_image(b"img"), "Mumbai, H1B, 1 date: Nov 4 2026")
+            self.assertEqual(s.read_slot_image(b"img"), "Mumbai, 1 date: Nov 4 2026")
 
 
 class FakeMessage:
@@ -196,7 +196,7 @@ class TesseractSmokeTest(unittest.TestCase):
                                  fill="black", font=font)
         buf = io.BytesIO()
         img.save(buf, "PNG")
-        self.assertEqual(s.read_slot_image(buf.getvalue()), "Hyderabad, H1B regular, 2 dates: Nov 4, 12 2026")
+        self.assertEqual(s.read_slot_image(buf.getvalue()), "Hyderabad, 2 dates: Nov 4, 12 2026")
 
 
 if __name__ == "__main__":

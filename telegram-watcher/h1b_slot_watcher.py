@@ -157,7 +157,7 @@ def make_handler(client):
             except Exception:
                 log.exception("Could not download alert image")
                 image_bytes = None
-            # Location, visa type and dates read from the screenshot, or None.
+            # Location and dates read from the screenshot, or None.
             summary = await asyncio.to_thread(slot_image.read_slot_image, image_bytes) if image_bytes else None
             if summary:
                 await _push(summary, "Slot details", "high")
