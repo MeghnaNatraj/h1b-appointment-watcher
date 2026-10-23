@@ -171,7 +171,7 @@ class HandlerTest(unittest.TestCase):
                                   calls.append(("ntfy", title, t))), \
                 mock.patch.object(w.slot_image, "read_slot_image",
                                   lambda b: calls.append(("ocr",)) or summary), \
-                mock.patch.object(w, "send_telegram_bot", lambda t, b: calls.append(("bot", t))), \
+                mock.patch.object(w, "send_telegram_bot", lambda t: calls.append(("bot", t))), \
                 mock.patch.object(w, "send_whatsapp", lambda t, report=True: calls.append(("wa", t))):
             asyncio.run(w.make_handler(FakeClient(calls))(FakeEvent(text, image)))
         return calls
@@ -198,7 +198,7 @@ class HandlerTest(unittest.TestCase):
         self.assertEqual(calls, [
             ("ntfy", "VISA SLOT", "New slot photo posted"),
             ("ocr",),
-            ("bot", ""),
+            ("bot", "New slot photo posted"),
             ("wa", "New slot photo posted"),
         ])
 

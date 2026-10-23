@@ -31,7 +31,7 @@ For every new message it:
 | Channel | What you get |
 |---|---|
 | **Android phone app** (Visa Alarm) | Full-screen red alarm at alarm volume, rings even on silent or vibrate, until you tap Dismiss or Open Telegram |
-| **Telegram bot** | Just the group's message (photo with caption, or text). Set a loud sound for the bot's chat on your phone |
+| **Telegram bot** | The group's message as text only, never the screenshot. Set a loud sound for the bot's chat on your phone |
 | **WhatsApp** | The message inside an approved template: "Update on your appointment alert: ... Complete." (Meta does not allow the message alone) |
 | **Telegram** copy to Saved Messages and a DM from your own account | Off by default: Telegram never notifies you about your own messages, so the bot replaced this |
 
@@ -98,7 +98,7 @@ Most alerts in the group are screenshots with no caption. The watcher reads each
 How the summary is used:
 
 - **Phone alarm**: the first alarm goes off at once, exactly as before, without waiting. A second message titled "Slot details" with the summary follows a moment later. The phone app rings for every message on the channel, so you may need to dismiss twice.
-- **Telegram bot, WhatsApp**: the summary is the first line, followed by the group's full original message when it had one, never shortened (WhatsApp itself cuts at 1000 characters).
+- **Telegram bot, WhatsApp**: text only, no screenshot. The summary is the first line, followed by the group's full original message when it had one, never shortened (WhatsApp itself cuts at 1000 characters).
 - **Text messages without an image** are sent as they are.
 
 If tesseract is not installed, cannot read the image, takes longer than 15 seconds, or finds no location or date, the alert still goes out exactly as it would without this feature. Set `OCR_ENABLED=false` to turn it off.

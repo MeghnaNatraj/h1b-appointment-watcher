@@ -4,7 +4,6 @@ Secrets and settings live in .env next to this file (see .env.example).
 """
 import argparse
 import asyncio
-import io
 import logging
 import os
 import re
@@ -101,7 +100,7 @@ def notify_owner(title, body):
     sent = False
     if os.environ.get("TG_BOT_TOKEN") and os.environ.get("TG_BOT_CHAT_ID"):
         try:
-            send_telegram_bot(f"{title}\n\n{body}", None)
+            send_telegram_bot(f"{title}\n\n{body}")
             sent = True
         except Exception as e:
             log.error("Bot notice failed: %s", e)
@@ -187,25 +186,15 @@ def send_whatsapp(text, report=True):
     )
 
 
-def send_telegram_bot(text, image_bytes):
-    """Send the alert from a Telegram bot to the user's chat with it.
+def send_telegram_bot(text):
+    """Send the alert text (never the screenshot) from a Telegram bot to the user's chat with it.
 
     Copies sent from the user's own account never notify them, but a bot's
     messages do, and that chat can get its own loud sound in Telegram.
     """
     base = f"https://api.telegram.org/bot{os.environ['TG_BOT_TOKEN']}"
-    chat = os.environ["TG_BOT_CHAT_ID"]
-    if image_bytes is not None:
-        # Captions stop at 1024 characters, so a longer message follows the
-        # photo as its own message instead of being cut.
-        long_text = len(text) > 1024
-        resp = requests.post(f"{base}/sendPhoto", timeout=30,
-                             data={"chat_id": chat, "caption": "" if long_text else text},
-                             files={"photo": ("alert.jpg", image_bytes)})
-        if resp.ok and long_text:
-            resp = requests.post(f"{base}/sendMessage", timeout=15, data={"chat_id": chat, "text": text})
-    else:
-        resp = requests.post(f"{base}/sendMessage", timeout=15, data={"chat_id": chat, "text": text})
+    resp = requests.post(f"{base}/sendMessage", timeout=15,
+                         data={"chat_id": os.environ["TG_BOT_CHAT_ID"], "text": text})
     if not resp.ok:
         raise RuntimeError(f"{resp.status_code} {resp.text[:300]}")
 
@@ -252,25 +241,15 @@ def build_channels(test=False):
     return [
         ("ntfy", bool(os.environ.get("NTFY_TOPIC")), lambda alert, caption, img, summary=None: send_ntfy(alert)),
         ("bot", all(os.environ.get(k) for k in CHANNEL_SETTINGS["bot"]),
-         lambda alert, caption, img, summary=None: send_telegram_bot(caption, img)),
+         lambda alert, caption, img, summary=None: send_telegram_bot(caption)),
         ("whatsapp", _env_bool("WA_ENABLED"),
          lambda alert, caption, img, summary=None: send_whatsapp(alert, report=not test)),
     ]
 
 
-async def _send_copy(client, target, text, image_bytes):
-    """Send a copy (not a forward) of the alert to one Telegram chat.
-
-    The source group has forwarding protection, so neither forward_messages nor
-    re-sending the original photo object works. Uploading the downloaded bytes
-    as a new file does.
-    """
-    if image_bytes is not None:
-        f = io.BytesIO(image_bytes)
-        f.name = "alert.jpg"
-        await client.send_file(target, f, caption=text or None)
-    else:
-        await client.send_message(target, text)
+async def _send_copy(client, target, text):
+    """Send a text copy of the alert (never the screenshot) to one Telegram chat."""
+    await client.send_message(target, text)
 
 
 def make_admin_check(client):
@@ -349,15 +328,12 @@ def make_handler(client):
             targets = ()
         for target, label in targets:
             try:
-                # If the image download failed, fall back to the alert text so
-                # an uncaptioned image still produces a message.
-                await _send_copy(client, target, caption if image_bytes is not None else alert, image_bytes)
+                await _send_copy(client, target, alert)
             except Exception as e:
                 log.error("Could not send to %s: %s", label, e)
 
-        bot_text = caption if image_bytes is not None else alert
         for channel in channels[1:]:
-            await run_channel(*channel, alert, bot_text, image_bytes, summary)
+            await run_channel(*channel, alert, alert, image_bytes, summary)
 
         log.info("Alert sent: %s", alert[:80])
 

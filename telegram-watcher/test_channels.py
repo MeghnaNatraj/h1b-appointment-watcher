@@ -18,7 +18,7 @@ ALL_ON = {
 def stubs(calls, ntfy=None):
     return (
         mock.patch.object(w, "send_ntfy", ntfy or (lambda t, title="", priority="": calls.append(("ntfy", t)))),
-        mock.patch.object(w, "send_telegram_bot", lambda t, i: calls.append(("bot", t))),
+        mock.patch.object(w, "send_telegram_bot", lambda t: calls.append(("bot", t))),
         mock.patch.object(w, "send_whatsapp", lambda t, report=True: calls.append(("whatsapp", t, report))),
     )
 
@@ -82,7 +82,7 @@ class NotifyOwnerTest(unittest.TestCase):
         calls = []
         with mock.patch.dict(os.environ, ALL_ON, clear=True), \
                 mock.patch.object(w, "send_ntfy", lambda t, title="", priority="": calls.append(("ntfy", title, priority))), \
-                mock.patch.object(w, "send_telegram_bot", lambda t, i: calls.append(("bot", t.split("\n")[0]))), \
+                mock.patch.object(w, "send_telegram_bot", lambda t: calls.append(("bot", t.split("\n")[0]))), \
                 tempfile.TemporaryDirectory() as tmp, \
                 mock.patch.object(w, "HERE", Path(tmp)):
             w.report_problem("unit-test", "Telegram login (logged out).", "Log in again")
