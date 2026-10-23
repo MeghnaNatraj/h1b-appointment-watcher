@@ -33,6 +33,14 @@ if [ ! -x "$APP/venv/bin/python" ]; then
     python3 -m venv "$APP/venv"
   fi
 fi
+# tesseract reads the slot screenshots. The watcher still alerts without it.
+if ! command -v tesseract >/dev/null; then
+  if command -v dnf >/dev/null; then
+    dnf install -y oracle-epel-release-el9 && dnf install -y tesseract tesseract-langpack-eng || true
+  else
+    apt-get install -y tesseract-ocr || true
+  fi
+fi
 if [ -x /usr/local/bin/uv ]; then
   /usr/local/bin/uv pip install -q --python "$APP/venv/bin/python" -r "$APP/requirements.txt"
 else

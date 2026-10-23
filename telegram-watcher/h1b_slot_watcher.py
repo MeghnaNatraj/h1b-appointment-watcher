@@ -25,7 +25,6 @@ JUNK_MARKER = "THIS IS H1 H4 INPERSON SLOTS AVAILA"
 # substring check would also match CHENNAI, AHMEDABAD, etc., so no letter may
 # sit on either side.
 NA_PATTERN = re.compile(r"(?<![A-Za-z])N[/.]?A(?![A-Za-z])", re.IGNORECASE)
-ADMIN_CACHE_SECONDS = 24 * 3600
 PROBLEM_REPEAT_HOURS = 6
 WATCHER_DIR = "h1b-appointment-watcher/telegram-watcher"
 REPO = "MeghnaNatraj/h1b-appointment-watcher"
@@ -105,27 +104,13 @@ def report_problem(key, what, fix, details=""):
     log.warning("Problem reported (%s): %s", key, what)
 
 
-def make_admin_check(client):
-    """Return an async check for "this message was posted by a group admin"."""
-    cache = {}  # sender_id -> (is_admin, checked_at)
+def is_admin_post(event):
+    """Anonymous admins and channel posts carry the chat itself as the sender.
 
-    async def is_admin_post(event):
-        # Anonymous admins and channel posts carry the chat itself as sender.
-        if event.message.post or event.sender_id is None or event.sender_id == event.chat_id:
-            return True
-        hit = cache.get(event.sender_id)
-        if hit and time.time() - hit[1] < ADMIN_CACHE_SECONDS:
-            return hit[0]
-        try:
-            perms = await client.get_permissions(event.chat_id, event.sender_id)
-            is_admin = bool(perms.is_admin or perms.is_creator)
-        except Exception as e:
-            log.warning("Could not check admin status of %s: %s", event.sender_id, e)
-            return False
-        cache[event.sender_id] = (is_admin, time.time())
-        return is_admin
-
-    return is_admin_post
+    Looking up a named sender's admin rights needs admin rights of our own in
+    this group, so it always failed and only delayed the alarm.
+    """
+    return bool(event.message.post) or event.sender_id is None or event.sender_id == event.chat_id
 
 
 async def _push(text, title="VISA SLOT", priority="urgent"):
@@ -136,14 +121,12 @@ async def _push(text, title="VISA SLOT", priority="urgent"):
 
 
 def make_handler(client):
-    is_admin_post = make_admin_check(client)
-
     async def handler(event):
         has_image = event.message.photo is not None
         text = (event.message.raw_text or "").strip()
         if not should_alert(text, has_image):
             return
-        if await is_admin_post(event):
+        if is_admin_post(event):
             log.info("Skipped admin message: %s", text[:80])
             return
 
@@ -232,7 +215,7 @@ def main():
             report_problem(
                 "crash",
                 f"The watcher (crashed with {name}; it auto-restarts).",
-                "Paste this message into Claude Code. Logs: "
+                "See the logs: "
                 f"{ssh} sudo journalctl -u h1b-watcher -n 100",
                 traceback.format_exc()[-1500:],
             )

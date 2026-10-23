@@ -124,31 +124,20 @@ class FakeEvent:
         self.chat_id = 7
 
 
-class FakePerms:
-    is_admin = False
-    is_creator = False
-
-
-class FakeClient:
-    async def get_permissions(self, chat, sender):
-        return FakePerms()
-
-
 class HandlerTest(unittest.TestCase):
     """Run the real handler with ntfy and OCR stubbed, no network."""
 
     def run_handler(self, text, image, summary, admin=False):
         calls = []
-        client = FakeClient()
+        event = FakeEvent(text, image)
         if admin:
-            FakePermsAdmin = type("P", (), {"is_admin": True, "is_creator": False})
-            client.get_permissions = lambda chat, sender: asyncio.sleep(0, FakePermsAdmin())
+            event.sender_id = event.chat_id  # anonymous admin post
         with mock.patch.dict(os.environ, {"NTFY_TOPIC": "t"}), \
                 mock.patch.object(w, "send_ntfy", lambda t, title="VISA SLOT", priority="urgent":
                                   calls.append(("ntfy", title, t))), \
                 mock.patch.object(w.slot_image, "read_slot_image",
                                   lambda b: calls.append(("ocr",)) or summary):
-            asyncio.run(w.make_handler(client)(FakeEvent(text, image)))
+            asyncio.run(w.make_handler(None)(event))
         return calls
 
     def test_photo_with_summary(self):
