@@ -46,6 +46,11 @@ class ChannelsTest(unittest.TestCase):
             self.assertFalse(dict((n, e) for n, e, _ in w.build_channels())["bot"])
             self.assertEqual(w.channel_skip_reason("bot"), "missing TG_BOT_CHAT_ID")
 
+    def test_bot_can_be_switched_off(self):
+        with mock.patch.dict(os.environ, dict(ALL_ON, BOT_ENABLED="false"), clear=True):
+            self.assertFalse(dict((n, e) for n, e, _ in w.build_channels())["bot"])
+            self.assertEqual(w.channel_skip_reason("bot"), "disabled (BOT_ENABLED is off)")
+
     def test_all_channels_sent(self):
         code, calls = self.run_with(ALL_ON)
         self.assertEqual(code, 0)

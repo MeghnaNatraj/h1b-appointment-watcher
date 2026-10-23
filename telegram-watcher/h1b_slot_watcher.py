@@ -98,7 +98,7 @@ def notify_owner(title, body):
     Raises if neither channel could be reached.
     """
     sent = False
-    if os.environ.get("TG_BOT_TOKEN") and os.environ.get("TG_BOT_CHAT_ID"):
+    if _bot_enabled():
         try:
             send_telegram_bot(f"{title}\n\n{body}")
             sent = True
@@ -212,7 +212,11 @@ CHANNEL_SETTINGS = {
     "bot": ["TG_BOT_TOKEN", "TG_BOT_CHAT_ID"],
     "whatsapp": ["WA_PHONE_NUMBER_ID", "WA_ACCESS_TOKEN", "WA_RECIPIENT"],
 }
-CHANNEL_FLAGS = {"whatsapp": ("WA_ENABLED", False)}
+CHANNEL_FLAGS = {"bot": ("BOT_ENABLED", True), "whatsapp": ("WA_ENABLED", False)}
+
+
+def _bot_enabled():
+    return _env_bool("BOT_ENABLED", True) and all(os.environ.get(k) for k in CHANNEL_SETTINGS["bot"])
 
 
 def _missing_settings(name):
@@ -240,7 +244,7 @@ def build_channels(test=False):
     """
     return [
         ("ntfy", bool(os.environ.get("NTFY_TOPIC")), lambda alert, caption, img, summary=None: send_ntfy(alert)),
-        ("bot", all(os.environ.get(k) for k in CHANNEL_SETTINGS["bot"]),
+        ("bot", _bot_enabled(),
          lambda alert, caption, img, summary=None: send_telegram_bot(caption)),
         ("whatsapp", _env_bool("WA_ENABLED"),
          lambda alert, caption, img, summary=None: send_whatsapp(alert, report=not test)),

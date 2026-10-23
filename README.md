@@ -85,7 +85,7 @@ All settings live in `.env` (template: `telegram-watcher/.env.example`).
 | `SOURCE_GROUP` | The group to watch | Already set to `Regular_H1B_H4_VisaSlotsChecking` |
 | `TELEGRAM_COPIES_ENABLED`, `TELEGRAM_RECIPIENT` | Telegram copies on or off, and the username (no @) that gets a DM | Your Telegram username |
 | `WA_ENABLED` and the other `WA_` settings | WhatsApp alerts via Meta's WhatsApp Cloud API | Meta for Developers, your WhatsApp app; templates in WhatsApp Manager |
-| `TG_BOT_TOKEN`, `TG_BOT_CHAT_ID` | The Telegram bot that sends you each alert | See "Telegram bot" below |
+| `TG_BOT_TOKEN`, `TG_BOT_CHAT_ID` | The Telegram bot that sends you each alert. `BOT_ENABLED=false` turns it off | See "Telegram bot" below |
 | `NTFY_TOPIC` | Private channel for the phone app | Make one up: `echo visa-alert-$(openssl rand -hex 8)` |
 | `HEALTHCHECK_URL` | The "still alive" link | healthchecks.io, your check's ping URL |
 | `OCR_ENABLED` | Read screenshots for a summary line | `true` (default) or `false` |
