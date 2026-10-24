@@ -35,8 +35,8 @@ public class MainActivity extends Activity {
     private static final int INK = Color.parseColor("#1F2421");
     private static final int MUTED = Color.parseColor("#5F6661");
     private static final int LINE = Color.parseColor("#D5D9D6");
-    private static final String[] SOUND_KEYS = {"alarm", "scream", "wilhelm"};
-    private static final String[] SOUND_LABELS = {"Phone alarm", "Horror scream", "Movie scream (Wilhelm)"};
+    private static final String[] SOUND_KEYS = {"alarm", "scream", "wilhelm", "vastuguna"};
+    private static final String[] SOUND_LABELS = {"Phone alarm", "Horror scream", "Movie scream (Wilhelm)", "Vastuguna huiya"};
 
     private TextView onOff;
     private boolean starting; // walking through the permission prompts after turning it on
@@ -86,11 +86,14 @@ public class MainActivity extends Activity {
         root.addView(soundLabel, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
+        // The last choice, the personal clip, only shows when this build includes it.
+        int choices = Alarm.personalClip(this) != 0 ? SOUND_KEYS.length : SOUND_KEYS.length - 1;
         Spinner sound = new Spinner(this);
         ArrayAdapter<String> labels = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, SOUND_LABELS);
+                android.R.layout.simple_spinner_dropdown_item, Arrays.copyOf(SOUND_LABELS, choices));
         sound.setAdapter(labels);
-        sound.setSelection(Math.max(0, Arrays.asList(SOUND_KEYS).indexOf(Prefs.sound(this))));
+        int saved = Arrays.asList(SOUND_KEYS).indexOf(Prefs.sound(this));
+        sound.setSelection(saved >= 0 && saved < choices ? saved : 0);
         sound.setBackground(rounded(Color.WHITE, LINE));
         sound.setPadding(dp(12), 0, dp(12), 0);
         LinearLayout.LayoutParams row = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56));

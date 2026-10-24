@@ -133,6 +133,8 @@ Visa Alarm is a one-screen app in `android-app/`:
 
 Both screams are free to use (CC0) and come from Wikimedia Commons: [Demonic Woman Scream](https://commons.wikimedia.org/wiki/File:Nick121087_-_Demonic_Woman_Scream_(cc0)_(freesound).mp3) by nick121087 and the [Wilhelm Scream](https://commons.wikimedia.org/wiki/File:Wilhelm_Scream.ogg). They live in `android-app/app/src/main/res/raw/`.
 
+There's also a fourth choice, **Vastuguna huiya**, which only shows up in my own build. That clip is a personal recording, so it's kept out of this repo (see `.gitignore`). To include it, put it at `android-app/app/src/main/res/raw/vastuguna.m4a` before building. Without it, the app builds fine and simply leaves that choice out.
+
 **To install it,** use the saved `~/.config/h1b-watcher/VisaAlarm.apk`, or build a new one (below). Either:
 
 - **By cable:** on the phone, turn on Developer options (Settings, About phone, Software information, tap Build number 7 times), then turn on USB debugging. On Samsung, turn off Settings, Security and privacy, Auto Blocker first. Plug the phone in, tap Allow, then run `$ANDROID_HOME/platform-tools/adb install -r VisaAlarm.apk`.
