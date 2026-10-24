@@ -46,7 +46,7 @@ The filter skips the group's repeating notice, anonymous admin posts, "NA" style
 One screen with three controls:
 
 - **ON/OFF box:** starts or stops listening. It asks for permissions the first time and restarts itself after a reboot.
-- **Alarm sound:** Phone alarm, Horror scream or Movie scream (Wilhelm). The two screams are CC0 clips from Wikimedia Commons.
+- **Alarm sound:** Phone alarm or Horror scream. The scream is a CC0 clip from Wikimedia Commons.
 - **Test alarm:** plays the chosen sound with the red alert screen.
 
 The alarm rings at full volume with vibration until I tap **Dismiss** or **Open Telegram**.

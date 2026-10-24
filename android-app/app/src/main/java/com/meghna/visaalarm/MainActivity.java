@@ -36,8 +36,8 @@ public class MainActivity extends Activity {
     private static final int INK = Color.parseColor("#1F2421");
     private static final int MUTED = Color.parseColor("#5F6661");
     private static final int LINE = Color.parseColor("#D5D9D6");
-    private static final String[] SOUND_KEYS = {"alarm", "scream", "wilhelm", "vastuguna", "pinkblush"};
-    private static final String[] SOUND_LABELS = {"Phone alarm", "Horror scream", "Movie scream (Wilhelm)", "Vastuguna huiya", "Pink Blush (Dolly Babe)"};
+    private static final String[] SOUND_KEYS = {"alarm", "scream", "vastuguna", "pinkblush"};
+    private static final String[] SOUND_LABELS = {"Phone alarm", "Horror scream", "Vastuguna huiya", "Pink Blush (Dolly Babe)"};
 
     private TextView onOff;
     private boolean starting; // walking through the permission prompts after turning it on
@@ -87,11 +87,11 @@ public class MainActivity extends Activity {
         root.addView(soundLabel, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // The personal clips (the first three choices are built in) only show when this build includes them.
+        // The personal clips (the first two choices are built in) only show when this build includes them.
         List<String> keys = new ArrayList<>();
         List<String> names = new ArrayList<>();
         for (int i = 0; i < SOUND_KEYS.length; i++) {
-            if (i < 3 || Alarm.personalClip(this, SOUND_KEYS[i]) != 0) {
+            if (i < 2 || Alarm.personalClip(this, SOUND_KEYS[i]) != 0) {
                 keys.add(SOUND_KEYS[i]);
                 names.add(SOUND_LABELS[i]);
             }

@@ -110,8 +110,6 @@ final class Alarm {
         switch (Prefs.sound(app)) {
             case "scream":
                 return Uri.parse("android.resource://" + app.getPackageName() + "/" + R.raw.scream);
-            case "wilhelm":
-                return Uri.parse("android.resource://" + app.getPackageName() + "/" + R.raw.wilhelm);
             case "vastuguna":
             case "pinkblush":
                 int clip = personalClip(app, Prefs.sound(app));
