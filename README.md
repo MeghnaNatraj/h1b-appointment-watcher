@@ -2,7 +2,7 @@
 
 H1B and H4 visa interview slots open at random and disappear in minutes. People post them in the Telegram group **Regular_H1B_H4_VisaSlotsChecking**, but the group is noisy and Telegram stays silent when my phone is on silent.
 
-This project watches the group around the clock and rings a loud alarm on my Android phone when someone posts a real slot. It runs free on an Oracle Cloud server, so my laptop can be off.
+This project watches the group around the clock and rings a loud alarm on my Android phone when someone posts a real slot. It runs free on an Oracle Cloud server.
 
 ## Design
 
