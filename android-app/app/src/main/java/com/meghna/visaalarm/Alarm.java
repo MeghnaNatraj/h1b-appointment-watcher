@@ -77,8 +77,7 @@ final class Alarm {
         previousVolume = am.getStreamVolume(AudioManager.STREAM_ALARM);
         am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0);
 
-        Uri sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
-        if (sound == null) sound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+        Uri sound = soundUri(app);
         try {
             player = new MediaPlayer();
             player.setAudioAttributes(new AudioAttributes.Builder()
@@ -104,6 +103,18 @@ final class Alarm {
             app.startActivity(full);
         } catch (Exception ignored) {
             // Background launch blocked: the full-screen notification covers it.
+        }
+    }
+
+    private static Uri soundUri(Context app) {
+        switch (Prefs.sound(app)) {
+            case "scream":
+                return Uri.parse("android.resource://" + app.getPackageName() + "/" + R.raw.scream);
+            case "baby":
+                return Uri.parse("android.resource://" + app.getPackageName() + "/" + R.raw.baby_cry);
+            default:
+                Uri u = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+                return u != null ? u : RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
         }
     }
 

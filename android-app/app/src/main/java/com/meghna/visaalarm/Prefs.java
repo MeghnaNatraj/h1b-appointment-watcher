@@ -42,6 +42,15 @@ final class Prefs {
         sp(c).edit().putString("last_id", id).apply();
     }
 
+    /** Alarm sound: "alarm" (the phone's own alarm sound), "scream" or "baby". */
+    static String sound(Context c) {
+        return sp(c).getString("sound", "alarm");
+    }
+
+    static void setSound(Context c, String s) {
+        sp(c).edit().putString("sound", s).apply();
+    }
+
     static String status(Context c) {
         return sp(c).getString("status", "Not started");
     }
