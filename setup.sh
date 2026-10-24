@@ -1,6 +1,6 @@
 #!/bin/bash
 # One-time setup after downloading this repo.
-# Copies the private files (.env and the Telegram login) in from the secrets
+# Copies the private files (.env, the Telegram login, the server address) in from the secrets
 # folder, builds the Python environment and runs the tests.
 # Secrets folder: ~/.config/h1b-watcher (override with H1B_SECRETS=/some/path).
 set -euo pipefail
@@ -15,6 +15,11 @@ for f in .env session.session; do
     echo "Copied $f from $SECRETS"
   fi
 done
+
+if [ ! -f cloud/server_ip.txt ] && [ -f "$SECRETS/server_ip.txt" ]; then
+  cp "$SECRETS/server_ip.txt" cloud/server_ip.txt
+  echo "Copied server_ip.txt from $SECRETS"
+fi
 
 if [ ! -f .env ]; then
   echo "No .env found. Put it in $SECRETS, or copy .env.example to .env and fill it in." >&2

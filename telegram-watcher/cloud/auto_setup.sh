@@ -17,6 +17,7 @@ done
 
 if "$D/deploy.sh" "$IP"; then
   echo "$IP" > "$D/server_ip.txt"
+  mkdir -p "$HOME/.config/h1b-watcher" && cp "$D/server_ip.txt" "$HOME/.config/h1b-watcher/"
   echo "$(date '+%F %T') deployed to $IP"
   osascript -e "display notification \"H1B watcher now runs on Oracle ($IP)\" with title \"H1B watcher moved to cloud\"" || true
   rm -f "$HOME/Library/LaunchAgents/$LABEL.plist"

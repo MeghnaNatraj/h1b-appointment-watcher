@@ -82,7 +82,7 @@ You need a Mac with Python 3 and `gh` (the GitHub command line tool).
    With no `.env` yet, copy `telegram-watcher/.env.example` to `~/.config/h1b-watcher/.env`, fill it in, and run `./setup.sh` again.
 2. **Log in to Telegram once.** Run `h1b_watcher_venv/bin/python h1b_slot_watcher.py` in `telegram-watcher/`, type the code Telegram sends, wait for "Watching group", press Ctrl+C, then back up the login with `cp session.session ~/.config/h1b-watcher/`.
 3. **healthchecks.io.** Create a check with a 5 minute period, put its ping URL in `HEALTHCHECK_URL`, and add a webhook that POSTs to `https://ntfy.sh/<NTFY_TOPIC>` with the header `Title: Watcher stopped` when it goes down.
-4. **Server.** `telegram-watcher/cloud/auto_setup.sh` requests a free Oracle server (retrying while capacity is short), installs the watcher and saves the address to `telegram-watcher/cloud/server_ip.txt`.
+4. **Server.** `telegram-watcher/cloud/auto_setup.sh` requests a free Oracle server (retrying while capacity is short), installs the watcher and saves the address to `telegram-watcher/cloud/server_ip.txt` and `~/.config/h1b-watcher/` (kept out of the repo).
 5. **Phone.** Install the app and tap **Test alarm**.
 
 **Settings** live in `~/.config/h1b-watcher/.env`:
@@ -124,7 +124,7 @@ The same problem alerts at most once every 6 hours.
 
 - **Read only:** never posts or reacts in the group.
 - **One copy:** only the server runs the watcher, since two copies on one Telegram login can get it cancelled.
-- **No secrets in the repo:** `.env`, `session.session`, keys (`~/.ssh/oracle_h1b`, `~/.oci/`) and the APK stay on the Mac.
+- **No secrets in the repo:** `.env`, `session.session`, the server address, keys (`~/.ssh/oracle_h1b`, `~/.oci/`) and the APK stay on the Mac.
 - **Free:** Oracle Always Free, ntfy.sh, healthchecks.io and tesseract cost nothing.
 
 For personal use, within Telegram's terms.

@@ -5,6 +5,7 @@ session.session
 h1b_watcher_venv/
 __pycache__/
 .DS_Store
+telegram-watcher/cloud/server_ip.txt
 # Personal alarm clips, kept on this Mac only
 android-app/app/src/main/res/raw/vastuguna.*
 android-app/app/src/main/res/raw/pinkblush.*
