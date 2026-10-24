@@ -1,4 +1,4 @@
-"""Watch a Telegram group for H1B/H4 visa slot alerts and ring the Visa Alarm app.
+"""Watch a Telegram group for H1B visa slot alerts and ring the Visa Alarm app.
 
 Secrets and settings live in .env next to this file (see .env.example).
 """

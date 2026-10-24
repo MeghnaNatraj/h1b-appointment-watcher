@@ -81,7 +81,7 @@ a { color: var(--alarm); }
   <header>
     <div class="eyebrow">System design · as of Oct 23, 2026</div>
     <h1>H1B Slot Watcher</h1>
-    <p class="lede">A cloud watcher reads the Regular_H1B_H4_VisaSlotsChecking Telegram group around the clock, filters out noise, and rings the Visa Alarm app on your Android phone within seconds of a real slot post.</p>
+    <p class="lede">A cloud watcher reads an H1B visa slots Telegram group around the clock, filters out noise, and rings the Visa Alarm app on your Android phone within seconds of a real slot post.</p>
     <div class="chips" aria-label="Alert channels right now">
       <span class="chip on">Visa Alarm app (ntfy)</span>
       <span class="chip on">healthchecks.io monitor</span>
@@ -94,7 +94,7 @@ a { color: var(--alarm); }
     <div class="diagram">
 <pre class="mermaid">
 flowchart LR
-  G["Telegram group<br/>Regular_H1B_H4_VisaSlotsChecking"]
+  G["Telegram group<br/>H1B visa slots"]
   subgraph VM["Oracle Cloud VM · Always Free · 1 GB RAM"]
     direction TB
     W["h1b_slot_watcher.py<br/>Telethon client, logged in as you<br/>systemd service h1b-watcher"]
@@ -121,7 +121,7 @@ flowchart LR
     <p>The phone rings before the screenshot is even downloaded. Reading the image happens afterwards and arrives as a second, quieter message.</p>
     <ol class="steps">
       <li><div><h3>Someone posts in the group</h3><p>Telethon delivers the new message to the watcher's handler. With <code>catch_up=True</code>, messages posted while it was disconnected are delivered after it reconnects, late rather than never.</p></div></li>
-      <li><div><h3>Filter</h3><p>Skips the group's repeating "H1 H4 inperson slots availa..." notice, any text with "NA", "N A", "N/A" or "N.A." standing alone (CHENNAI still passes), anything mentioning "ghost", text that is only a greeting or small talk ("What’s up?", "Hi", "Thanks"), and posts from anonymous admins or the group itself. Any remaining photo or text is an alert.</p></div></li>
+      <li><div><h3>Filter</h3><p>Skips the group's repeating rules notice, any text with "NA", "N A", "N/A" or "N.A." standing alone (CHENNAI still passes), anything mentioning "ghost", text that is only a greeting or small talk ("What’s up?", "Hi", "Thanks"), and posts from anonymous admins or the group itself. Any remaining photo or text is an alert.</p></div></li>
       <li><div><h3>First push to ntfy</h3><p>The message text, or "New slot photo posted" for a bare screenshot, goes to <code>https://ntfy.sh/&lt;NTFY_TOPIC&gt;</code> with title VISA SLOT and priority urgent.</p><p class="t">about 1 s after the post</p></div></li>
       <li><div><h3>Phone rings</h3><p>The app's open stream receives the event, checks it has not rung for this message id, then plays the alarm sound on the alarm audio stream at full volume with vibration and a full-screen red screen. It rings even on silent or vibrate, for at most 10 minutes, until you tap Dismiss or Open Telegram.</p></div></li>
       <li><div><h3>Read the screenshot</h3><p>The watcher downloads the image and runs tesseract on it. It picks out the location and dates, for example <code>Hyderabad, 3 dates: Nov 4, 5, 12 2026</code>. It never guesses: no match means no summary.</p><p class="t">a few seconds, capped at 15 s</p></div></li>
