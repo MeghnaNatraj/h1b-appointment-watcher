@@ -113,7 +113,8 @@ final class Alarm {
             case "wilhelm":
                 return Uri.parse("android.resource://" + app.getPackageName() + "/" + R.raw.wilhelm);
             case "vastuguna":
-                int clip = personalClip(app);
+            case "pinkblush":
+                int clip = personalClip(app, Prefs.sound(app));
                 if (clip != 0) return Uri.parse("android.resource://" + app.getPackageName() + "/" + clip);
                 // Built without the clip: fall through to the phone alarm.
             default:
@@ -122,9 +123,9 @@ final class Alarm {
         }
     }
 
-    /** The personal "vastuguna huiya" clip, which is not in the repo; 0 when this build lacks it. */
-    static int personalClip(Context c) {
-        return c.getResources().getIdentifier("vastuguna", "raw", c.getPackageName());
+    /** A personal clip ("vastuguna" or "pinkblush"), which is not in the repo; 0 when this build lacks it. */
+    static int personalClip(Context c, String name) {
+        return c.getResources().getIdentifier(name, "raw", c.getPackageName());
     }
 
     static synchronized void stop(Context c) {

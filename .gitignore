@@ -5,5 +5,6 @@ session.session
 h1b_watcher_venv/
 __pycache__/
 .DS_Store
-# Personal alarm clip, kept on this Mac only
+# Personal alarm clips, kept on this Mac only
 android-app/app/src/main/res/raw/vastuguna.*
+android-app/app/src/main/res/raw/pinkblush.*

@@ -21,7 +21,8 @@ import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * One screen: an ON/OFF box, the alarm sound and a test button. Turning
@@ -35,8 +36,8 @@ public class MainActivity extends Activity {
     private static final int INK = Color.parseColor("#1F2421");
     private static final int MUTED = Color.parseColor("#5F6661");
     private static final int LINE = Color.parseColor("#D5D9D6");
-    private static final String[] SOUND_KEYS = {"alarm", "scream", "wilhelm", "vastuguna"};
-    private static final String[] SOUND_LABELS = {"Phone alarm", "Horror scream", "Movie scream (Wilhelm)", "Vastuguna huiya"};
+    private static final String[] SOUND_KEYS = {"alarm", "scream", "wilhelm", "vastuguna", "pinkblush"};
+    private static final String[] SOUND_LABELS = {"Phone alarm", "Horror scream", "Movie scream (Wilhelm)", "Vastuguna huiya", "Pink Blush (Dolly Babe)"};
 
     private TextView onOff;
     private boolean starting; // walking through the permission prompts after turning it on
@@ -86,14 +87,21 @@ public class MainActivity extends Activity {
         root.addView(soundLabel, new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
 
-        // The last choice, the personal clip, only shows when this build includes it.
-        int choices = Alarm.personalClip(this) != 0 ? SOUND_KEYS.length : SOUND_KEYS.length - 1;
+        // The personal clips (the first three choices are built in) only show when this build includes them.
+        List<String> keys = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        for (int i = 0; i < SOUND_KEYS.length; i++) {
+            if (i < 3 || Alarm.personalClip(this, SOUND_KEYS[i]) != 0) {
+                keys.add(SOUND_KEYS[i]);
+                names.add(SOUND_LABELS[i]);
+            }
+        }
         Spinner sound = new Spinner(this);
         ArrayAdapter<String> labels = new ArrayAdapter<>(this,
-                android.R.layout.simple_spinner_dropdown_item, Arrays.copyOf(SOUND_LABELS, choices));
+                android.R.layout.simple_spinner_dropdown_item, names);
         sound.setAdapter(labels);
-        int saved = Arrays.asList(SOUND_KEYS).indexOf(Prefs.sound(this));
-        sound.setSelection(saved >= 0 && saved < choices ? saved : 0);
+        int saved = keys.indexOf(Prefs.sound(this));
+        sound.setSelection(Math.max(saved, 0));
         sound.setBackground(rounded(Color.WHITE, LINE));
         sound.setPadding(dp(12), 0, dp(12), 0);
         LinearLayout.LayoutParams row = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(56));
@@ -102,7 +110,7 @@ public class MainActivity extends Activity {
         sound.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, android.view.View view, int position, long id) {
-                Prefs.setSound(MainActivity.this, SOUND_KEYS[position]);
+                Prefs.setSound(MainActivity.this, keys.get(position));
             }
 
             @Override
