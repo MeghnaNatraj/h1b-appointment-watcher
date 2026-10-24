@@ -20,11 +20,13 @@ HERE = Path(__file__).resolve().parent
 log = logging.getLogger("h1b_watcher")
 
 JUNK_MARKER = "THIS IS H1 H4 INPERSON SLOTS AVAILA"
-# "NA", "N/A" or "N.A.", in any case, means "no slots". The group also writes
-# "NA1", "Na2 all" (NA for slot type 1, 2, ...), so a digit may follow. A plain
-# substring check would also match CHENNAI, AHMEDABAD, etc., so no letter may
-# sit on either side.
-NA_PATTERN = re.compile(r"(?<![A-Za-z])N[/.]?A(?![A-Za-z])", re.IGNORECASE)
+# "NA", "N A", "N/A", "N.A." or "N - A", in any case, means "no slots". The
+# group also writes "NA1", "Na2 all" (NA for slot type 1, 2, ...), so a digit
+# may follow. A plain substring check would also match CHENNAI, AHMEDABAD, etc.,
+# so no letter may sit on either side.
+NA_PATTERN = re.compile(r"(?<![A-Za-z])N[ /.\-]*A(?![A-Za-z])", re.IGNORECASE)
+# "Ghost" posts (a booking that vanished, or "ghosted") are not real slots.
+GHOST_PATTERN = re.compile(r"ghost", re.IGNORECASE)
 PROBLEM_REPEAT_HOURS = 6
 WATCHER_DIR = "h1b-appointment-watcher/telegram-watcher"
 REPO = "MeghnaNatraj/h1b-appointment-watcher"
@@ -59,7 +61,7 @@ def should_alert(text, has_image):
     text = (text or "").strip()
     if JUNK_MARKER in text.upper():
         return False
-    if NA_PATTERN.search(text):
+    if NA_PATTERN.search(text) or GHOST_PATTERN.search(text):
         return False
     return has_image or bool(text)
 

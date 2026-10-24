@@ -38,7 +38,13 @@ There are three parts:
 ## What happens when someone posts
 
 1. **A message arrives** in the group. If the watcher was offline for a bit, it picks up the missed messages when it reconnects, so alerts come late rather than never.
-2. **The filter drops noise.** It skips the group's repeating "H1 H4 inperson slots availa..." notice, posts from anonymous admins, and anything that says "NA" or "N/A" as a word (that means "no slots"). City names like CHENNAI still get through.
+2. **The filter drops noise.** It skips:
+   - the group's repeating "H1 H4 inperson slots availa..." notice
+   - posts from anonymous admins
+   - "NA" written on its own, meaning "no slots", including "N A", "N/A", "N.A." and "N-A". City names like CHENNAI still get through.
+   - anything with "ghost" in it, like "Ghost slot" or "got ghosted", since those slots can't actually be booked
+
+   Capital letters don't matter for any of these.
 3. **The phone rings right away.** The watcher sends the message text, or "New slot photo posted" if it was only a screenshot. This takes about a second.
 4. **The screenshot gets read.** If there is a picture, the watcher reads the text in it and pulls out the city and dates. Nothing is guessed: if it can't find a city or a date, it skips this step. It gives up after 15 seconds.
 5. **"Slot details" follows.** What it found goes out as a second message, for example `Hyderabad, 3 dates: Nov 4, 5, 12 2026`.
@@ -53,7 +59,7 @@ Reading the screenshot can take a few seconds, which is why the first alarm neve
 | A screenshot with the caption "Hyd open now" | Hyd open now | Hyderabad, 3 dates: Nov 4, 5, 12 2026 |
 | A screenshot with no caption | New slot photo posted | Hyderabad, 3 dates: Nov 4, 5, 12 2026 |
 | A screenshot nothing can be read from | New slot photo posted | none |
-| "Hyderabad NA" | nothing, it's skipped | none |
+| "Hyderabad N A" or "Ghost slot" | nothing, it's skipped | none |
 
 The app plays the chosen alarm sound at full volume, vibrates and shows a red full-screen alert, even on silent or vibrate. It keeps ringing until I tap **Dismiss** or **Open Telegram**. If the second message arrives while it's still ringing, the notification text changes to the details. If I already dismissed the first one, it rings again.
 

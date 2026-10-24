@@ -27,6 +27,20 @@ class ShouldAlertTest(unittest.TestCase):
             self.assertFalse(w.should_alert(msg, False), msg)
             self.assertFalse(w.should_alert(msg, True), msg)
 
+    def test_spaced_and_punctuated_na_skipped(self):
+        for msg in ("Hyderabad N A", "n a", "Mumbai N . A", "Delhi N-A", "N  A all", "N A1 h1b"):
+            self.assertFalse(w.should_alert(msg, False), msg)
+            self.assertFalse(w.should_alert(msg, True), msg)
+
+    def test_spaced_letters_inside_words_still_alert(self):
+        for msg in ("Chennai available", "Kolkata Nov 4", "IN Amsterdam open", "Slots open in Hyderabad"):
+            self.assertTrue(w.should_alert(msg, False), msg)
+
+    def test_ghost_skipped(self):
+        for msg in ("Ghost", "ghost slot", "Got ghosted again", "GHOST booking"):
+            self.assertFalse(w.should_alert(msg, False), msg)
+            self.assertFalse(w.should_alert(msg, True), msg)
+
     def test_n_dot_a_skipped(self):
         self.assertFalse(w.should_alert("Delhi N.A.", False))
         self.assertFalse(w.should_alert("Delhi: Na", False))
