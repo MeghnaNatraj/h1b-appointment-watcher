@@ -36,6 +36,16 @@ class ShouldAlertTest(unittest.TestCase):
         for msg in ("Chennai available", "Kolkata Nov 4", "IN Amsterdam open", "Slots open in Hyderabad"):
             self.assertTrue(w.should_alert(msg, False), msg)
 
+    def test_small_talk_skipped(self):
+        for msg in ("What’s up?", "what's up", "Whats up??", "sup", "Hi", "hello!!", "Hey", "Good morning",
+                    "Thanks", "thank you", "ok", "Okay.", "lol"):
+            self.assertFalse(w.should_alert(msg, False), msg)
+
+    def test_small_talk_with_slot_or_photo_alerts(self):
+        self.assertTrue(w.should_alert("Hi, Chennai slots open Nov 13", False))
+        self.assertTrue(w.should_alert("hey", True))
+        self.assertTrue(w.should_alert("Hyderabad", False))
+
     def test_ghost_skipped(self):
         for msg in ("Ghost", "ghost slot", "Got ghosted again", "GHOST booking"):
             self.assertFalse(w.should_alert(msg, False), msg)

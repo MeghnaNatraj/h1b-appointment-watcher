@@ -27,6 +27,11 @@ JUNK_MARKER = "THIS IS H1 H4 INPERSON SLOTS AVAILA"
 NA_PATTERN = re.compile(r"(?<![A-Za-z])N[ /.\-]*A(?![A-Za-z])", re.IGNORECASE)
 # "Ghost" posts (a booking that vanished, or "ghosted") are not real slots.
 GHOST_PATTERN = re.compile(r"ghost", re.IGNORECASE)
+# A text-only message that is nothing but a greeting or small talk.
+SMALL_TALK = re.compile(
+    r"^\W*(what[’']?s ?up|wh?at ?up|wassup|sup|hi+|hello+|hey+|yo"
+    r"|good (morning|afternoon|evening|night)|gm|thanks?( you)?|thx|ty|ok+|okay|cool|lol+)\W*$",
+    re.IGNORECASE)
 PROBLEM_REPEAT_HOURS = 6
 WATCHER_DIR = "h1b-appointment-watcher/telegram-watcher"
 REPO = "MeghnaNatraj/h1b-appointment-watcher"
@@ -63,7 +68,9 @@ def should_alert(text, has_image):
         return False
     if NA_PATTERN.search(text) or GHOST_PATTERN.search(text):
         return False
-    return has_image or bool(text)
+    if has_image:
+        return True
+    return bool(text) and not SMALL_TALK.match(text)
 
 
 def send_ntfy(text, title="VISA SLOT", priority="urgent"):

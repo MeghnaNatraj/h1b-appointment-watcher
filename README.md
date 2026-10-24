@@ -43,6 +43,7 @@ There are three parts:
    - posts from anonymous admins
    - "NA" written on its own, meaning "no slots", including "N A", "N/A", "N.A." and "N-A". City names like CHENNAI still get through.
    - anything with "ghost" in it, like "Ghost slot" or "got ghosted", since those slots can't actually be booked
+   - text that's only a greeting or small talk, like "What’s up?", "Hi", "Thanks" or "ok". A screenshot always rings, even with a caption like "hey".
 
    Capital letters don't matter for any of these.
 3. **The phone rings right away.** The watcher sends the message text, or "New slot photo posted" if it was only a screenshot. This takes about a second.
