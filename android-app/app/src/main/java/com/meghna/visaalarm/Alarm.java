@@ -110,8 +110,8 @@ final class Alarm {
         switch (Prefs.sound(app)) {
             case "scream":
                 return Uri.parse("android.resource://" + app.getPackageName() + "/" + R.raw.scream);
-            case "baby":
-                return Uri.parse("android.resource://" + app.getPackageName() + "/" + R.raw.baby_cry);
+            case "wilhelm":
+                return Uri.parse("android.resource://" + app.getPackageName() + "/" + R.raw.wilhelm);
             default:
                 Uri u = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
                 return u != null ? u : RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);

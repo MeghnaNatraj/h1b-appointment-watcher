@@ -11,16 +11,13 @@ import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.os.PowerManager;
 import android.provider.Settings;
-import android.text.SpannableString;
-import android.text.style.RelativeSizeSpan;
 import android.view.Gravity;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -28,7 +25,7 @@ import android.widget.TextView;
 import java.util.Arrays;
 
 /**
- * One screen: a big on/off switch, the alarm sound and a test button. Turning
+ * One screen: an on/off switch like a wall light switch, the alarm sound and a test button. Turning
  * it on asks for each permission the alarm needs, one at a time, then starts
  * listening. Nothing else to set up.
  */
@@ -39,20 +36,11 @@ public class MainActivity extends Activity {
     private static final int INK = Color.parseColor("#1F2421");
     private static final int MUTED = Color.parseColor("#5F6661");
     private static final int LINE = Color.parseColor("#D5D9D6");
-    private static final String[] SOUND_KEYS = {"alarm", "scream", "baby"};
-    private static final String[] SOUND_LABELS = {"Phone alarm", "Horror movie scream", "Baby crying"};
+    private static final String[] SOUND_KEYS = {"alarm", "scream", "wilhelm"};
+    private static final String[] SOUND_LABELS = {"Phone alarm", "Horror scream", "Movie scream (Wilhelm)"};
 
-    private TextView status;
-    private Button toggle;
-    private boolean starting; // walking through the permission prompts after Start
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private final Runnable ticker = new Runnable() {
-        @Override
-        public void run() {
-            refresh();
-            handler.postDelayed(this, 2000);
-        }
-    };
+    private TextView knob;
+    private boolean starting; // walking through the permission prompts after turning it on
 
     @Override
     protected void onCreate(Bundle state) {
@@ -71,15 +59,21 @@ public class MainActivity extends Activity {
         title.setTextColor(INK);
         root.addView(title);
 
-        // One big switch: green while listening, gray while off.
-        toggle = new Button(this);
-        toggle.setAllCaps(false);
-        toggle.setTextColor(Color.WHITE);
-        toggle.setStateListAnimator(null);
-        LinearLayout.LayoutParams big = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(170));
-        big.topMargin = dp(36);
-        root.addView(toggle, big);
-        toggle.setOnClickListener(v -> {
+        // A wall light switch: the knob sits up and green for ON, down and gray for OFF.
+        FrameLayout plate = new FrameLayout(this);
+        plate.setBackground(rounded(Color.WHITE, LINE));
+        plate.setPadding(dp(10), dp(10), dp(10), dp(10));
+        knob = new TextView(this);
+        knob.setTextColor(Color.WHITE);
+        knob.setTextSize(30);
+        knob.setTypeface(Typeface.DEFAULT_BOLD);
+        knob.setGravity(Gravity.CENTER);
+        plate.addView(knob, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(110)));
+        LinearLayout.LayoutParams plateLp = new LinearLayout.LayoutParams(dp(150), dp(240));
+        plateLp.topMargin = dp(40);
+        plateLp.bottomMargin = dp(40);
+        root.addView(plate, plateLp);
+        plate.setOnClickListener(v -> {
             if (Prefs.enabled(this)) {
                 Prefs.setEnabled(this, false);
                 ListenerService.stop(this);
@@ -89,13 +83,6 @@ public class MainActivity extends Activity {
                 continueStart();
             }
         });
-
-        status = new TextView(this);
-        status.setTextSize(15);
-        status.setTextColor(MUTED);
-        status.setGravity(Gravity.CENTER);
-        status.setPadding(0, dp(14), 0, dp(36));
-        root.addView(status);
 
         TextView soundLabel = new TextView(this);
         soundLabel.setText("Alarm sound");
@@ -148,13 +135,7 @@ public class MainActivity extends Activity {
         super.onResume();
         // Back from a permission screen: carry on with the next step.
         if (starting) continueStart();
-        handler.post(ticker);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        handler.removeCallbacks(ticker);
+        refresh();
     }
 
     @Override
@@ -199,12 +180,10 @@ public class MainActivity extends Activity {
 
     private void refresh() {
         boolean on = Prefs.enabled(this);
-        String hint = on ? "Tap to turn off" : "Tap to turn on";
-        SpannableString text = new SpannableString((on ? "ON" : "OFF") + "\n" + hint);
-        text.setSpan(new RelativeSizeSpan(2.4f), 0, on ? 2 : 3, 0);
-        toggle.setText(text);
-        toggle.setBackground(rounded(on ? GREEN : GRAY, 0));
-        status.setText(on ? Prefs.status(this) : "Not listening. Visa slot alarms are off.");
+        knob.setText(on ? "ON" : "OFF");
+        knob.setBackground(rounded(on ? GREEN : GRAY, 0));
+        ((FrameLayout.LayoutParams) knob.getLayoutParams()).gravity = on ? Gravity.TOP : Gravity.BOTTOM;
+        knob.requestLayout();
     }
 
     /** Rounded box with an optional 1.5 dp outline. */

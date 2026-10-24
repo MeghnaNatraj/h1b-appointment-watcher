@@ -42,7 +42,7 @@ final class Prefs {
         sp(c).edit().putString("last_id", id).apply();
     }
 
-    /** Alarm sound: "alarm" (the phone's own alarm sound), "scream" or "baby". */
+    /** Alarm sound: "alarm" (the phone's own alarm sound), "scream" or "wilhelm". */
     static String sound(Context c) {
         return sp(c).getString("sound", "alarm");
     }
