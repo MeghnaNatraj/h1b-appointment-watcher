@@ -17,7 +17,6 @@ import android.view.Gravity;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -25,7 +24,7 @@ import android.widget.TextView;
 import java.util.Arrays;
 
 /**
- * One screen: an on/off switch like a wall light switch, the alarm sound and a test button. Turning
+ * One screen: an ON/OFF box, the alarm sound and a test button. Turning
  * it on asks for each permission the alarm needs, one at a time, then starts
  * listening. Nothing else to set up.
  */
@@ -39,7 +38,7 @@ public class MainActivity extends Activity {
     private static final String[] SOUND_KEYS = {"alarm", "scream", "wilhelm"};
     private static final String[] SOUND_LABELS = {"Phone alarm", "Horror scream", "Movie scream (Wilhelm)"};
 
-    private TextView knob;
+    private TextView onOff;
     private boolean starting; // walking through the permission prompts after turning it on
 
     @Override
@@ -59,21 +58,17 @@ public class MainActivity extends Activity {
         title.setTextColor(INK);
         root.addView(title);
 
-        // A wall light switch: the knob sits up and green for ON, down and gray for OFF.
-        FrameLayout plate = new FrameLayout(this);
-        plate.setBackground(rounded(Color.WHITE, LINE));
-        plate.setPadding(dp(10), dp(10), dp(10), dp(10));
-        knob = new TextView(this);
-        knob.setTextColor(Color.WHITE);
-        knob.setTextSize(30);
-        knob.setTypeface(Typeface.DEFAULT_BOLD);
-        knob.setGravity(Gravity.CENTER);
-        plate.addView(knob, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(110)));
-        LinearLayout.LayoutParams plateLp = new LinearLayout.LayoutParams(dp(150), dp(240));
-        plateLp.topMargin = dp(40);
-        plateLp.bottomMargin = dp(40);
-        root.addView(plate, plateLp);
-        plate.setOnClickListener(v -> {
+        // One box: green with ON while listening, gray with OFF when not. Tap to switch.
+        onOff = new TextView(this);
+        onOff.setTextColor(Color.WHITE);
+        onOff.setTextSize(44);
+        onOff.setTypeface(Typeface.DEFAULT_BOLD);
+        onOff.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams boxLp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(170));
+        boxLp.topMargin = dp(40);
+        boxLp.bottomMargin = dp(40);
+        root.addView(onOff, boxLp);
+        onOff.setOnClickListener(v -> {
             if (Prefs.enabled(this)) {
                 Prefs.setEnabled(this, false);
                 ListenerService.stop(this);
@@ -180,10 +175,8 @@ public class MainActivity extends Activity {
 
     private void refresh() {
         boolean on = Prefs.enabled(this);
-        knob.setText(on ? "ON" : "OFF");
-        knob.setBackground(rounded(on ? GREEN : GRAY, 0));
-        ((FrameLayout.LayoutParams) knob.getLayoutParams()).gravity = on ? Gravity.TOP : Gravity.BOTTOM;
-        knob.requestLayout();
+        onOff.setText(on ? "ON" : "OFF");
+        onOff.setBackground(rounded(on ? GREEN : GRAY, 0));
     }
 
     /** Rounded box with an optional 1.5 dp outline. */

@@ -127,7 +127,7 @@ You need a Mac with Python 3 and the GitHub command line tool `gh`.
 
 Visa Alarm is a one-screen app in `android-app/`:
 
-- **The switch** works like a light switch at home: tap it to flip it. Up and green means **ON** and it's listening, down and gray means **OFF**. The first time you turn it on, it asks for each permission it needs (notifications, full-screen alerts, no battery limits). After that it listens in the background and starts again on its own after a reboot.
+- **The ON/OFF box** turns it on and off with a tap. Green with **ON** means it's listening, gray with **OFF** means it isn't. The first time you turn it on, it asks for each permission it needs (notifications, full-screen alerts, no battery limits). After that it listens in the background and starts again on its own after a reboot.
 - **Alarm sound** is a dropdown with three choices: **Phone alarm** (the phone's own alarm sound), **Horror scream** and **Movie scream (Wilhelm)**. The choice is saved and used for every alert.
 - **Test alarm** plays the chosen sound with the red alert screen, so you can hear it before a real slot comes in.
 
